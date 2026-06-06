@@ -63,3 +63,15 @@ COPY --from=orchestrator-build /server /server
 COPY orchestrator/orchestrator-dev.yaml /configs/orchestrator.yaml
 EXPOSE 8084
 ENTRYPOINT ["/server", "/configs/orchestrator.yaml"]
+
+# --- Audit Service ---
+FROM base AS audit-build
+COPY . .
+RUN CGO_ENABLED=0 go build -o /server ./audit/cmd/server
+
+FROM alpine:3.20 AS audit
+RUN apk add --no-cache ca-certificates tzdata
+COPY --from=audit-build /server /server
+COPY audit/audit-dev.yaml /configs/audit.yaml
+EXPOSE 8085
+ENTRYPOINT ["/server", "/configs/audit.yaml"]
