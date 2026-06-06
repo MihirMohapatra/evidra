@@ -34,7 +34,7 @@ func (r *QuestionRepo) CreateBatch(ctx context.Context, questions []*domain.Ques
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	query := `INSERT INTO questions (id, questionnaire_id, text, type, "order", options, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	for _, q := range questions {

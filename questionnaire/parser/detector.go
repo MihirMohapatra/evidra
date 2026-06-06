@@ -2,7 +2,6 @@ package parser
 
 import (
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/evidra/evidra/questionnaire/domain"
@@ -139,9 +138,4 @@ func containsAny(s string, substrs ...string) bool {
 		}
 	}
 	return false
-}
-
-func parseInt(s string) int {
-	n, _ := strconv.Atoi(s)
-	return n
 }

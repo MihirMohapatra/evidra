@@ -94,7 +94,6 @@ func (r *EvidenceRepo) List(ctx context.Context, filter repository.EvidenceFilte
 	if filter.Offset > 0 {
 		query += fmt.Sprintf(" OFFSET $%d", argIdx)
 		args = append(args, filter.Offset)
-		argIdx++
 	}
 
 	rows, err := r.pool.Query(ctx, query, args...)

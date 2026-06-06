@@ -383,7 +383,7 @@ func (s *IdentityService) parseJWT(tokenStr string) (jwt.MapClaims, error) {
 
 func generateRawKey(length int) string {
 	b := make([]byte, length)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
 
