@@ -1,0 +1,22 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+  read_timeout: 10s
+  write_timeout: 10s
+  shutdown_timeout: 30s
+
+database:
+  url: "postgres://evidra:evidra@localhost:5432/evidra_identity?sslmode=disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+jwt:
+  secret: "dev-secret-change-in-production"
+  issuer: "evidra-identity"
+  session_ttl: 24h
+  api_key_length: 32
+
+log:
+  level: "debug"
+  format: "text"
