@@ -21,6 +21,8 @@ make migrate-questionnaire QUESTIONNAIRE_DB_URL="postgres://evidra:evidra@localh
 make migrate-evidence   EVIDENCE_DB_URL="postgres://evidra:evidra@localhost:5432/evidra_evidence?sslmode=disable"
 make migrate-orchestrator ORCHESTRATOR_DB_URL="postgres://evidra:evidra@localhost:5432/evidra_orchestrator?sslmode=disable"
 make migrate-audit      AUDIT_DB_URL="postgres://evidra:evidra@localhost:5432/evidra_audit?sslmode=disable"
+make migrate-export     EXPORT_DB_URL="postgres://evidra:evidra@localhost:5432/evidra_export?sslmode=disable"
+make migrate-compliance COMPLIANCE_DB_URL="postgres://evidra:evidra@localhost:5432/evidra_compliance?sslmode=disable"
 
 # Start all services (separate terminals)
 make run-identity
@@ -30,6 +32,8 @@ make run-evidence
 make run-orchestrator
 make run-orchestrator-worker
 make run-audit
+make run-export
+make run-compliance
 ```
 
 ### Docker Compose
@@ -45,7 +49,7 @@ docker compose logs -f
 make docker-down
 ```
 
-The compose file runs: 5 PostgreSQL databases, NATS JetStream, MinIO + bucket creation, all 7 service images.
+The compose file runs: 7 PostgreSQL databases, NATS JetStream, MinIO + bucket creation, all 9 service images.
 
 ## Docker
 
@@ -60,6 +64,8 @@ docker build --target evidence -t evidra/evidence .
 docker build --target orchestrator -t evidra/orchestrator .
 docker build --target orchestrator-worker -t evidra/orchestrator-worker .
 docker build --target audit -t evidra/audit .
+docker build --target export -t evidra/export .
+docker build --target compliance -t evidra/compliance .
 ```
 
 Base image: `golang:1.25-alpine` → `alpine:3.20` (final stage).
@@ -75,7 +81,7 @@ Triggers on push to `master`, `feat/**`, `fix/**` and pull requests to `master`:
 | Lint | golangci-lint v2 | Static analysis |
 | Build | `go build ./...` | Compile all packages + binaries |
 | Test | `go test -race -count=1 ./...` | Unit tests (30+, testify) |
-| Docker | Docker Buildx | Build all 7 images (no push) |
+| Docker | Docker Buildx | Build all 9 images (no push) |
 
 ### CD (`.github/workflows/cd.yml`)
 
@@ -83,7 +89,7 @@ Triggers on push to `master` or `v*` tags:
 
 | Step | Description |
 |------|-------------|
-| Build & Push 7 images | Multi-architecture, pushed to `ghcr.io/<owner>/evidra/<service>:latest` and `:<sha>` |
+| Build & Push 9 images | Multi-architecture, pushed to `ghcr.io/<owner>/evidra/<service>:latest` and `:<sha>` |
 
 Authentication: `secrets.GITHUB_TOKEN` for GHCR access.
 
@@ -103,7 +109,9 @@ deployments/kubernetes/
 │   ├── questionnaire.yaml
 │   ├── evidence.yaml
 │   ├── orchestrator.yaml
-│   └── audit.yaml
+│   ├── audit.yaml
+│   ├── export.yaml
+│   └── compliance.yaml
 ├── deployments/
 │   ├── identity.yaml
 │   ├── questionnaire.yaml
@@ -111,7 +119,9 @@ deployments/kubernetes/
 │   ├── evidence.yaml
 │   ├── orchestrator.yaml
 │   ├── orchestrator-worker.yaml
-│   └── audit.yaml
+│   ├── audit.yaml
+│   ├── export.yaml
+│   └── compliance.yaml
 ├── ingress.yaml
 └── kustomization.yaml
 ```

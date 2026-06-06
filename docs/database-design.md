@@ -221,6 +221,88 @@ erDiagram
 - `audit_events(action)` filter
 - `audit_events(target_id)` filter
 
+## Export Service (`evidra_export`)
+
+### Tables
+
+```mermaid
+erDiagram
+    exports {
+        uuid id PK
+        uuid tenant_id
+        uuid evidence_id
+        string format "pdf | xlsx | docx"
+        string status "pending | processing | completed | failed"
+        string file_url
+        bigint file_size
+        string error_message
+        timestamptz created_at
+        timestamptz updated_at
+    }
+```
+
+### Indexes
+- `exports(tenant_id, status)` composite
+- `exports(evidence_id)` FK
+
+## Compliance Service (`evidra_compliance`)
+
+### Tables
+
+```mermaid
+erDiagram
+    frameworks {
+        uuid id PK
+        uuid tenant_id
+        string name UK
+        string slug UK
+        string description
+        string version
+        jsonb metadata
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    controls {
+        uuid id PK
+        uuid framework_id FK
+        string control_id
+        string title
+        text description
+        string category "administrative | technical | physical"
+        jsonb metadata
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    evidence_mappings {
+        uuid id PK
+        uuid control_id FK
+        uuid evidence_id
+        text notes
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    question_mappings {
+        uuid id PK
+        uuid control_id FK
+        uuid question_id
+        text notes
+        timestamptz created_at
+    }
+
+    frameworks ||--o{ controls : contains
+    controls ||--o{ evidence_mappings : maps
+    controls ||--o{ question_mappings : maps
+```
+
+### Indexes
+- `frameworks(tenant_id, slug)` UNIQUE composite
+- `controls(framework_id, control_id)` UNIQUE composite
+- `evidence_mappings(control_id, evidence_id)` UNIQUE composite
+- `question_mappings(control_id, question_id)` UNIQUE composite
+
 ## Migration Strategy
 
 Each service has its own migration directory:
@@ -243,6 +325,8 @@ make migrate-questionnaire QUESTIONNAIRE_DB_URL="..."
 make migrate-evidence   EVIDENCE_DB_URL="..."
 make migrate-orchestrator ORCHESTRATOR_DB_URL="..."
 make migrate-audit      AUDIT_DB_URL="..."
+make migrate-export     EXPORT_DB_URL="..."
+make migrate-compliance COMPLIANCE_DB_URL="..."
 ```
 
 ## pgvector Setup

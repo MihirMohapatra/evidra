@@ -15,30 +15,29 @@
                     │  (Next.js)   │
                     └──────┬───────┘
                            │ HTTP / gRPC
-           ┌───────────────┼───────────────────┐
-           │               │                   │
-    ┌──────▼──────┐ ┌─────▼──────┐  ┌─────────▼──────────┐
-    │   Identity  │ │Questionnaire│  │  Evidence          │
-    │   Service   │ │  Service    │  │  Repository        │
-    └──────┬──────┘ └─────┬──────┘  └─────────┬──────────┘
-           │               │                   │
-           │         ┌─────▼──────┐            │
-           │         │   Worker   │            │
-           │         │ (NATS sub) │            │
-           │         └─────┬──────┘            │
-           │               │                   │
-    ┌──────▼──────┐ ┌─────▼──────┐  ┌─────────▼──────────┐
-    │    Audit    │ │Orchestrator│  │  Worker             │
-    │   Service   │ │  Service   │  │  (NATS sub)         │
-    └─────────────┘ └────────────┘  └─────────────────────┘
-           │               │                   │
-           └───────────────┼───────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │    NATS     │
-                    │   Message   │
-                    │    Bus      │
-                    └─────────────┘
+           ┌───────────────┼─────────────────────────────────┐
+           │               │                                 │
+    ┌──────▼──────┐ ┌─────▼──────┐  ┌─────────▼──────────┐ ┌─▼──────────┐
+    │   Identity  │ │Questionnaire│  │  Evidence          │ │  Export    │
+    │   Service   │ │  Service    │  │  Repository        │ │  Service   │
+    └──────┬──────┘ └─────┬──────┘  └─────────┬──────────┘ └─────┬──────┘
+           │               │                   │                  │
+           │         ┌─────▼──────┐            │                  │
+           │         │   Worker   │            │                  │
+           │         │ (NATS sub) │            │                  │
+           │         └─────┬──────┘            │                  │
+           │               │                   │                  │
+    ┌──────▼──────┐ ┌─────▼──────┐  ┌─────────▼──────────┐ ┌─────▼──────┐
+    │    Audit    │ │Orchestrator│  │  Worker             │ │ Compliance │
+    │   Service   │ │  Service   │  │  (NATS sub)         │ │  Mapper    │
+    └─────────────┘ └────────────┘  └─────────────────────┘ └────────────┘
+           │               │                   │                  │
+           └───────────────┼───────────────────┼──────────────────┘
+                           │                   │
+                    ┌──────▼───────────────────▼──────┐
+                    │           NATS                   │
+                    │        Message Bus               │
+                    └──────────────────────────────────┘
 ```
 
 ### Services
@@ -50,6 +49,8 @@
 | **Evidence** | 8083 | ✅ Live | Evidence repository with embeddings & approval workflow |
 | **Orchestrator** | 8084 | ✅ Live | RAG, LLM integration (OpenAI/Claude/Local), draft generation |
 | **Audit** | 8085 | ✅ Live | Event sourcing & audit trail with NATS ingestion |
+| **Export** | 8086 | ✅ Live | PDF/XLSX/DOCX generation with MinIO storage |
+| **Compliance** | 8087 | ✅ Live | Framework mapper (SOC2, ISO27001, NIST, PCI-DSS, HIPAA, FedRAMP) |
 | **Frontend** | 3000 | ✅ Live | Next.js 15 dashboard with TypeScript |
 
 ### Supporting Infrastructure
@@ -139,6 +140,22 @@ evidra/
 │   ├── service/
 │   └── transport/
 │
+├── export/                   # Document export service
+│   ├── cmd/server/
+│   ├── domain/
+│   ├── events/
+│   ├── repository/
+│   ├── service/              # PDF/XLSX/DOCX generators
+│   └── transport/
+│
+├── compliance/               # Compliance framework mapper
+│   ├── cmd/server/
+│   ├── domain/
+│   ├── events/
+│   ├── repository/
+│   ├── service/
+│   └── transport/
+│
 ├── pkg/                      # Shared libraries
 │   ├── queue/                # NATS message bus abstraction
 │   ├── storage/              # MinIO/S3 abstraction
@@ -194,6 +211,8 @@ go run ./questionnaire/cmd/worker
 go run ./evidence/cmd/server
 go run ./orchestrator/cmd/server
 go run ./audit/cmd/server
+go run ./export/cmd/server
+go run ./compliance/cmd/server
 
 # Start frontend (in another terminal)
 cd frontend
@@ -306,6 +325,26 @@ go run ./identity/migrations
 | POST | `/api/v1/audit/events` | Record audit event |
 | GET | `/api/v1/audit/events` | List audit events |
 
+### Export Service (port 8086)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/exports` | Export evidence (PDF/XLSX/DOCX) |
+| GET | `/api/v1/exports/{id}` | Get export status/details |
+| GET | `/api/v1/exports` | List exports (filter by `evidence_id`) |
+
+### Compliance Service (port 8087)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST/GET | `/api/v1/compliance/frameworks` | Create/list frameworks |
+| GET/DELETE | `/api/v1/compliance/frameworks/{frameworkId}` | Framework detail/delete |
+| POST/GET | `/api/v1/compliance/frameworks/{frameworkId}/controls` | Create/list controls |
+| POST | `/api/v1/compliance/mappings` | Map evidence to control |
+| DELETE | `/api/v1/compliance/mappings/{id}` | Remove mapping |
+| GET | `/api/v1/compliance/mappings/by-control/{controlId}` | Mappings by control |
+| GET | `/api/v1/compliance/frameworks/{frameworkId}/coverage` | Coverage report |
+
 ## Observability
 
 - **Metrics**: Prometheus `/metrics` endpoint on every service
@@ -350,8 +389,8 @@ terraform apply
 - [x] Terraform infrastructure-as-code
 - [x] CI/CD pipeline
 - [x] OpenTelemetry tracing + Prometheus metrics
-- [ ] Export service (PDF/XLSX/DOCX)
-- [ ] Compliance framework mapper
+- [x] Export service (PDF/XLSX/DOCX)
+- [x] Compliance framework mapper
 - [ ] WebSocket real-time updates
 - [ ] Mobile app (React Native)
 

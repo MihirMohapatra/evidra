@@ -58,6 +58,22 @@ Evidra is a modular microservice platform for managing evidence repositories, co
           │              │  Event-sourced append-only audit log     │                              │
           │              │  Predefined actions, JSONB metadata      │                              │
           │              │  DB: evidra_audit (pg port 5437)         │                              │
+          │              └───────────┬──────────────────────────────┘                              │
+          │                          │                                                             │
+          │              ┌───────────▼──────────────────────────────┐                              │
+          │              │          Export :8086                     │                              │
+          │              │  PDF (gofpdf), XLSX (excelize),          │                              │
+          │              │  DOCX (custom OOXML) generation          │                              │
+          │              │  uploads to MinIO, NATS events           │                              │
+          │              │  DB: evidra_export (pg port 5438)        │                              │
+          │              └───────────┬──────────────────────────────┘                              │
+          │                          │                                                             │
+          │              ┌───────────▼──────────────────────────────┐                              │
+          │              │      Compliance Mapper :8087              │                              │
+          │              │  6 framework seeds (SOC2, ISO27001, etc) │                              │
+          │              │  Control library (admin/tech/physical)   │                              │
+          │              │  Evidence mapping & coverage reports     │                              │
+          │              │  DB: evidra_compliance (pg port 5439)    │                              │
           │              └──────────────────────────────────────────┘                              │
           │                                                                                        │
           └────────────────────────────────────────────────────────────────────────────────────────┘
@@ -76,8 +92,11 @@ Evidra is a modular microservice platform for managing evidence repositories, co
 
 ```
 questionnaire.uploaded  ──►  Questionnaire Worker  ──►  questions.saved
-                                                                │
+                                                                 │
 evidence.created        ──►  Orchestrator Worker   ──►  embeddings.upserted
+
+export.requested        ──►  Export Service        ──►  export.completed / export.failed
+compliance.evidence.mapped ──►  Compliance Mapper   ──►  coverage.updated
 ```
 
 ## Domain-Driven Design per Service
@@ -136,3 +155,5 @@ api/
 | Evidence | 8083 | 9083 | 5435 |
 | Orchestrator | 8084 | 9084 | 5436 |
 | Audit | 8085 | 9085 | 5437 |
+| Export | 8086 | 9086 | 5438 |
+| Compliance | 8087 | 9087 | 5439 |
