@@ -46,8 +46,7 @@ func TestMain(m *testing.M) {
 }
 
 func startPostgres(ctx context.Context, dbName, port string) *pgxpool.Pool {
-	container, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("postgres:16-alpine"),
+	container, err := postgres.Run(ctx, "postgres:16-alpine",
 		postgres.WithDatabase(dbName),
 		postgres.WithUsername("evidra"),
 		postgres.WithPassword("evidra"),
