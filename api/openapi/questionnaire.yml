@@ -1,0 +1,143 @@
+openapi: 3.0.3
+info:
+  title: Evidra Questionnaire Service
+  description: Upload, parse, and extract questions from PDF/XLSX/DOCX documents
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8082/api/v1
+    description: Local development
+
+components:
+  schemas:
+    Questionnaire:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        title: { type: string }
+        file_name: { type: string }
+        file_url: { type: string }
+        file_type: { type: string }
+        file_size: { type: integer, format: int64 }
+        status:
+          type: string
+          enum: [uploaded, queued, parsing, parsed, failed, assigned]
+        version: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Question:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        questionnaire_id: { type: string, format: uuid }
+        text: { type: string }
+        type:
+          type: string
+          enum: [multiple_choice, single_choice, open_ended, true_false, fill_blank]
+        order: { type: integer }
+        options:
+          type: array
+          items: { type: string }
+        created_at: { type: string, format: date-time }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: string }
+
+paths:
+  /questionnaires/upload:
+    post:
+      tags: [Questionnaires]
+      summary: Upload document for parsing
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF, XLSX, or DOCX file
+                title:
+                  type: string
+                tenant_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Upload accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Questionnaire' }
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /questionnaires:
+    get:
+      tags: [Questionnaires]
+      summary: List questionnaires
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Questionnaire list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Questionnaire' }
+
+  /questionnaires/{id}:
+    get:
+      tags: [Questionnaires]
+      summary: Get questionnaire details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Questionnaire
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Questionnaire' }
+    delete:
+      tags: [Questionnaires]
+      summary: Delete questionnaire
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Deleted }
+
+  /questionnaires/{id}/questions:
+    get:
+      tags: [Questions]
+      summary: Get extracted questions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Question list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Question' }

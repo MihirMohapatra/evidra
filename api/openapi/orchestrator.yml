@@ -1,0 +1,163 @@
+openapi: 3.0.3
+info:
+  title: Evidra Orchestrator Service
+  description: RAG pipeline, LLM integration (OpenAI/Claude/Local), draft generation
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8084/api/v1/orchestrator
+    description: Local development
+
+components:
+  schemas:
+    Draft:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        question_text: { type: string }
+        answer: { type: string }
+        confidence: { type: number, format: float }
+        model_used: { type: string }
+        evidence_ids:
+          type: array
+          items: { type: string, format: uuid }
+        reasoning: { type: string }
+        feedback: { type: string }
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Evidence:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        content: { type: string }
+        category: { type: string }
+        score: { type: number, format: float }
+        source_url: { type: string }
+    AnswerResponse:
+      type: object
+      properties:
+        draft: { $ref: '#/components/schemas/Draft' }
+        evidence:
+          type: array
+          items: { $ref: '#/components/schemas/Evidence' }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: string }
+
+paths:
+  /answer:
+    post:
+      tags: [Orchestrator]
+      summary: Answer a compliance question using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question, tenant_id]
+              properties:
+                question: { type: string }
+                context: { type: string }
+                tenant_id: { type: string, format: uuid }
+      responses:
+        '200':
+          description: AI-generated answer with evidence
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnswerResponse' }
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /drafts:
+    get:
+      tags: [Drafts]
+      summary: List drafts
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Draft list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Draft' }
+                  total: { type: integer }
+                  limit: { type: integer }
+                  offset: { type: integer }
+
+  /drafts/{id}:
+    get:
+      tags: [Drafts]
+      summary: Get draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Draft' }
+
+  /drafts/{id}/approve:
+    post:
+      tags: [Drafts]
+      summary: Approve draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Draft' }
+
+  /drafts/{id}/reject:
+    post:
+      tags: [Drafts]
+      summary: Reject draft with feedback
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feedback]
+              properties:
+                feedback: { type: string }
+      responses:
+        '200':
+          description: Rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Draft' }

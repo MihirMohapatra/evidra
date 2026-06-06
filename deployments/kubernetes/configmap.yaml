@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evidra-config
+  namespace: evidra
+data:
+  EVIDRA_NATS_URL: "nats://nats:4222"
+  EVIDRA_STORAGE_ENDPOINT: "minio:9000"

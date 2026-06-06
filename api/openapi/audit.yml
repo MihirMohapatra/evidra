@@ -1,0 +1,117 @@
+openapi: 3.0.3
+info:
+  title: Evidra Audit Service
+  description: Event-sourced append-only audit log
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8085/api/v1/audit
+    description: Local development
+
+components:
+  schemas:
+    AuditEvent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid }
+        action:
+          type: string
+          enum:
+            - QUESTION_UPLOADED
+            - AI_GENERATED
+            - ANSWER_APPROVED
+            - DOCUMENT_EXPORTED
+            - ROLE_CHANGED
+            - EVIDENCE_CREATED
+            - EVIDENCE_DELETED
+            - EVIDENCE_EXPIRED
+            - USER_LOGIN
+            - API_KEY_CREATED
+        target_id: { type: string }
+        timestamp: { type: string, format: date-time }
+        metadata:
+          type: object
+          additionalProperties: true
+    RecordInput:
+      type: object
+      required: [tenant_id, actor_id, action]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid }
+        action: { type: string }
+        target_id: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+    PaginatedResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AuditEvent' }
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: string }
+
+paths:
+  /events:
+    post:
+      tags: [Audit]
+      summary: Record an audit event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordInput' }
+      responses:
+        '201':
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditEvent' }
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    get:
+      tags: [Audit]
+      summary: List audit events
+      parameters:
+        - name: tenant_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: actor_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: action
+          in: query
+          schema: { type: string }
+        - name: target_id
+          in: query
+          schema: { type: string }
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+        - name: until
+          in: query
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Filtered event list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedResponse' }
