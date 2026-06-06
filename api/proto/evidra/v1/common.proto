@@ -1,0 +1,17 @@
+syntax = "proto3";
+package evidra.v1;
+
+option go_package = "github.com/evidra/evidra/api/gen/evidra/v1;evidrav1";
+
+import "google/protobuf/timestamp.proto";
+
+message UUID {
+  string value = 1;
+}
+
+message Empty {}
+
+message Pagination {
+  int32 page = 1;
+  int32 page_size = 2;
+}

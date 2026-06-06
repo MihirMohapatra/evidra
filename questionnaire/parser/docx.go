@@ -33,7 +33,7 @@ func (e *DOCXExtractor) Extract(ctx context.Context, reader io.Reader) (string, 
 			if err != nil {
 				return "", err
 			}
-			defer rc.Close()
+			defer func() { _ = rc.Close() }()
 			documentXML, err = io.ReadAll(rc)
 			if err != nil {
 				return "", err

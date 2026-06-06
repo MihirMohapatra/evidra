@@ -89,7 +89,7 @@ func (e *OpenAIEngine) GenerateAnswer(ctx context.Context, question domain.Quest
 	if err != nil {
 		return domain.Draft{}, fmt.Errorf("%w: api call: %w", domain.ErrLLMError, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

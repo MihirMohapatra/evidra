@@ -44,7 +44,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "file is required")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	q, err := h.svc.Upload(r.Context(), tenantID, title, file, header)
 	if err != nil {

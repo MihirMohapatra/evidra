@@ -1,0 +1,71 @@
+syntax = "proto3";
+package evidra.v1;
+
+option go_package = "github.com/evidra/evidra/api/gen/evidra/v1;evidrav1";
+
+import "google/protobuf/timestamp.proto";
+import "evidra/v1/common.proto";
+
+message Questionnaire {
+  string id = 1;
+  string tenant_id = 2;
+  string title = 3;
+  string file_name = 4;
+  string file_url = 5;
+  string file_type = 6;
+  int64 file_size = 7;
+  string status = 8;
+  int32 version = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message Question {
+  string id = 1;
+  string questionnaire_id = 2;
+  string text = 3;
+  string type = 4;
+  int32 order = 5;
+  repeated string options = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message UploadRequest {
+  string tenant_id = 1;
+  string title = 2;
+  string file_name = 3;
+  bytes content = 4;
+  string file_type = 5;
+}
+
+message GetQuestionnaireRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message ListQuestionnairesRequest {
+  string tenant_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListQuestionnairesResponse {
+  repeated Questionnaire questionnaires = 1;
+  int32 total = 2;
+}
+
+message ListQuestionsRequest {
+  string questionnaire_id = 1;
+}
+
+message ListQuestionsResponse {
+  repeated Question questions = 1;
+}
+
+service QuestionnaireService {
+  rpc Upload(UploadRequest) returns (Questionnaire);
+  rpc GetQuestionnaire(GetQuestionnaireRequest) returns (Questionnaire);
+  rpc ListQuestionnaires(ListQuestionnairesRequest) returns (ListQuestionnairesResponse);
+  rpc ListQuestions(ListQuestionsRequest) returns (ListQuestionsResponse);
+}

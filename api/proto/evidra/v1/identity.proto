@@ -1,0 +1,176 @@
+syntax = "proto3";
+package evidra.v1;
+
+option go_package = "github.com/evidra/evidra/api/gen/evidra/v1;evidrav1";
+
+import "google/protobuf/timestamp.proto";
+import "evidra/v1/common.proto";
+
+message Organization {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message User {
+  string id = 1;
+  string organization_id = 2;
+  string email = 3;
+  string role = 4;
+  bool is_active = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message Session {
+  string token = 1;
+  string refresh_token = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  User user = 4;
+}
+
+message CreateOrganizationRequest {
+  string name = 1;
+  string slug = 2;
+}
+
+message GetOrganizationRequest {
+  string id = 1;
+}
+
+message ListOrganizationsResponse {
+  repeated Organization organizations = 1;
+}
+
+message UpdateOrganizationRequest {
+  string id = 1;
+  string name = 2;
+}
+
+message DeleteOrganizationRequest {
+  string id = 1;
+}
+
+message CreateUserRequest {
+  string organization_id = 1;
+  string email = 2;
+  string password = 3;
+  string role = 4;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message ListUsersRequest {
+  string organization_id = 1;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  string email = 2;
+  string role = 3;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message LogoutRequest {
+  string session_id = 1;
+}
+
+message CreateAPIKeyRequest {
+  string organization_id = 1;
+  string name = 2;
+}
+
+message APIKeyResponse {
+  string id = 1;
+  string name = 2;
+  string key_prefix = 3;
+  bool is_active = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message CreateAPIKeyFullResponse {
+  APIKeyResponse key = 1;
+  string raw_key = 2;
+}
+
+message ListAPIKeysRequest {
+  string organization_id = 1;
+}
+
+message ListAPIKeysResponse {
+  repeated APIKeyResponse keys = 1;
+}
+
+message RevokeAPIKeyRequest {
+  string id = 1;
+}
+
+message OIDCProviderInfo {
+  string name = 1;
+  string redirect_url = 2;
+}
+
+message ListOIDCProvidersResponse {
+  repeated OIDCProviderInfo providers = 1;
+}
+
+message OIDCLoginRequest {
+  string provider = 1;
+}
+
+message OIDCLoginResponse {
+  string auth_url = 1;
+}
+
+message OIDCCallbackRequest {
+  string provider = 1;
+  string code = 2;
+  string state = 3;
+}
+
+service IdentityService {
+  rpc CreateOrganization(CreateOrganizationRequest) returns (Organization);
+  rpc GetOrganization(GetOrganizationRequest) returns (Organization);
+  rpc ListOrganizations(Empty) returns (ListOrganizationsResponse);
+  rpc UpdateOrganization(UpdateOrganizationRequest) returns (Organization);
+  rpc DeleteOrganization(DeleteOrganizationRequest) returns (Empty);
+
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  rpc DeleteUser(DeleteUserRequest) returns (Empty);
+
+  rpc Login(LoginRequest) returns (Session);
+  rpc RefreshToken(RefreshTokenRequest) returns (Session);
+  rpc Logout(LogoutRequest) returns (Empty);
+
+  rpc CreateAPIKey(CreateAPIKeyRequest) returns (CreateAPIKeyFullResponse);
+  rpc ListAPIKeys(ListAPIKeysRequest) returns (ListAPIKeysResponse);
+  rpc RevokeAPIKey(RevokeAPIKeyRequest) returns (Empty);
+
+  rpc ListOIDCProviders(Empty) returns (ListOIDCProvidersResponse);
+  rpc OIDCLogin(OIDCLoginRequest) returns (OIDCLoginResponse);
+  rpc OIDCCallback(OIDCCallbackRequest) returns (Session);
+}

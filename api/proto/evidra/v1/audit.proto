@@ -1,0 +1,43 @@
+syntax = "proto3";
+package evidra.v1;
+
+option go_package = "github.com/evidra/evidra/api/gen/evidra/v1;evidrav1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "evidra/v1/common.proto";
+
+message AuditEvent {
+  string id = 1;
+  string tenant_id = 2;
+  string actor_id = 3;
+  string action = 4;
+  string target_id = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  google.protobuf.Struct metadata = 7;
+}
+
+message ListAuditEventsRequest {
+  string tenant_id = 1;
+  string actor_id = 2;
+  string action = 3;
+  string target_id = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+  int32 page = 7;
+  int32 page_size = 8;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEvent events = 1;
+  int32 total = 2;
+}
+
+message GetAuditEventRequest {
+  string id = 1;
+}
+
+service AuditService {
+  rpc ListEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
+  rpc GetEvent(GetAuditEventRequest) returns (AuditEvent);
+}
