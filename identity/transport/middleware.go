@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/evidra/evidra/identity/domain"
+	"github.com/evidra/evidra/identity/service"
 )
 
 type contextKey string
@@ -56,6 +57,7 @@ func Authentication(auth Authenticator) func(http.Handler) http.Handler {
 					return
 				}
 				ctx := context.WithValue(r.Context(), userKey, user)
+				ctx = service.CtxWithActor(ctx, user)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}

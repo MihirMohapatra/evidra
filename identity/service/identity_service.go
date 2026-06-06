@@ -19,8 +19,11 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
+	auditdomain "github.com/evidra/evidra/audit/domain"
+	"github.com/evidra/evidra/audit/events"
 	"github.com/evidra/evidra/identity/domain"
 	"github.com/evidra/evidra/identity/repository"
+	"github.com/evidra/evidra/pkg/queue"
 )
 
 type Config struct {
@@ -50,6 +53,7 @@ type IdentityService struct {
 	providers []ProviderConfig
 	v       *validator.Validate
 	cfg     Config
+	bus     queue.EventBus
 }
 
 func New(
@@ -61,6 +65,7 @@ func New(
 	links repository.LinkedAccountRepository,
 	cfg Config,
 	providers []ProviderConfig,
+	bus queue.EventBus,
 ) *IdentityService {
 	return &IdentityService{
 		orgs:      orgs,
@@ -72,6 +77,7 @@ func New(
 		providers: providers,
 		v:         validator.New(),
 		cfg:       cfg,
+		bus:       bus,
 	}
 }
 
@@ -97,6 +103,7 @@ func (s *IdentityService) CreateOrganization(ctx context.Context, name, slug str
 	if err := s.orgs.Create(ctx, org); err != nil {
 		return nil, err
 	}
+	s.auditPublish(ctx, auditdomain.ActionOrganizationCreated, org.ID.String())
 	return org, nil
 }
 
@@ -118,11 +125,16 @@ func (s *IdentityService) UpdateOrganization(ctx context.Context, id uuid.UUID, 
 	if err := s.orgs.Update(ctx, org); err != nil {
 		return nil, err
 	}
+	s.auditPublish(ctx, auditdomain.ActionOrganizationUpdated, org.ID.String())
 	return org, nil
 }
 
 func (s *IdentityService) DeleteOrganization(ctx context.Context, id uuid.UUID) error {
-	return s.orgs.Delete(ctx, id)
+	if err := s.orgs.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.auditPublish(ctx, auditdomain.ActionOrganizationDeleted, id.String())
+	return nil
 }
 
 // --- Users ---
@@ -165,6 +177,7 @@ func (s *IdentityService) CreateUser(ctx context.Context, input CreateUserInput)
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, err
 	}
+	s.auditPublish(ctx, auditdomain.ActionUserCreated, user.ID.String())
 	return user, nil
 }
 
@@ -205,11 +218,16 @@ func (s *IdentityService) UpdateUser(ctx context.Context, id uuid.UUID, input Up
 	if err := s.users.Update(ctx, user); err != nil {
 		return nil, err
 	}
+	s.auditPublish(ctx, auditdomain.ActionUserUpdated, user.ID.String())
 	return user, nil
 }
 
 func (s *IdentityService) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	return s.users.Delete(ctx, id)
+	if err := s.users.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.auditPublish(ctx, auditdomain.ActionUserDeleted, id.String())
+	return nil
 }
 
 // --- Auth ---
@@ -241,11 +259,21 @@ func (s *IdentityService) Login(ctx context.Context, email, password string) (*d
 		return nil, err
 	}
 
+	s.auditPublish(ctx, auditdomain.ActionUserLogin, user.ID.String())
 	return session, nil
 }
 
 func (s *IdentityService) Logout(ctx context.Context, sessionID uuid.UUID) error {
-	return s.sess.Delete(ctx, sessionID)
+	actor := ActorFromCtx(ctx)
+	var actorID uuid.UUID
+	if actor != nil {
+		actorID = actor.ID
+	}
+	if err := s.sess.Delete(ctx, sessionID); err != nil {
+		return err
+	}
+	s.auditPublish(ctx, auditdomain.ActionUserLogout, actorID.String())
+	return nil
 }
 
 func (s *IdentityService) ValidateSession(ctx context.Context, token string) (*domain.User, error) {
@@ -329,6 +357,7 @@ func (s *IdentityService) CreateAPIKey(ctx context.Context, orgID uuid.UUID, nam
 		return nil, "", err
 	}
 
+	s.auditPublish(ctx, auditdomain.ActionAPIKeyCreated, key.ID.String())
 	return key, rawKey, nil
 }
 
@@ -351,7 +380,11 @@ func (s *IdentityService) RevokeAPIKey(ctx context.Context, id uuid.UUID) error 
 	}
 	key.IsActive = false
 	key.UpdatedAt = time.Now()
-	return s.keys.Update(ctx, key)
+	if err := s.keys.Update(ctx, key); err != nil {
+		return err
+	}
+	s.auditPublish(ctx, auditdomain.ActionAPIKeyRevoked, key.ID.String())
+	return nil
 }
 
 func (s *IdentityService) ListAPIKeys(ctx context.Context, orgID uuid.UUID) ([]*domain.APIKey, error) {
@@ -618,6 +651,40 @@ func (s *IdentityService) parseJWT(tokenStr string) (jwt.MapClaims, error) {
 	}
 
 	return claims, nil
+}
+
+// --- context helpers ---
+
+type ctxKeyActor struct{}
+
+func CtxWithActor(ctx context.Context, user *domain.User) context.Context {
+	return context.WithValue(ctx, ctxKeyActor{}, user)
+}
+
+func ActorFromCtx(ctx context.Context) *domain.User {
+	u, _ := ctx.Value(ctxKeyActor{}).(*domain.User)
+	return u
+}
+
+// --- audit publishing ---
+
+func (s *IdentityService) auditPublish(ctx context.Context, action auditdomain.Action, targetID string) {
+	actor := ActorFromCtx(ctx)
+	var actorID, tenantID uuid.UUID
+	if actor != nil {
+		actorID = actor.ID
+		tenantID = actor.OrganizationID
+	}
+	s.publish(ctx, events.NewAuditRecorded(tenantID, actorID, string(action), targetID))
+}
+
+func (s *IdentityService) publish(ctx context.Context, event queue.Event) {
+	if s.bus == nil {
+		return
+	}
+	if err := s.bus.Publish(ctx, event); err != nil {
+		slog.Warn("failed to publish event", "subject", event.Subject(), "error", err)
+	}
 }
 
 func generateRawKey(length int) string {

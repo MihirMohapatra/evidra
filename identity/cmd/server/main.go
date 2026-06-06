@@ -20,6 +20,7 @@ import (
 	"github.com/evidra/evidra/identity/service"
 	"github.com/evidra/evidra/identity/transport"
 	grpctransport "github.com/evidra/evidra/identity/transport/grpc"
+	"github.com/evidra/evidra/pkg/queue"
 )
 
 func main() {
@@ -69,6 +70,13 @@ func main() {
 		})
 	}
 
+	// NATS
+	natsBus, err := queue.NewNATS(queue.NATSConfig{URL: cfg.NATS.URL})
+	if err != nil {
+		slog.Warn("nats not available, running without events", "error", err)
+		natsBus = nil
+	}
+
 	// Service
 	svcCfg := service.Config{
 		JWTSecret:         cfg.JWT.Secret,
@@ -77,7 +85,7 @@ func main() {
 		APIKeyLength:      cfg.JWT.APIKeyLength,
 		PasswordMinLength: 8,
 	}
-	svc := service.New(orgRepo, userRepo, sessRepo, keyRepo, oidcStateRepo, linkedAccountRepo, svcCfg, oidcProviders)
+	svc := service.New(orgRepo, userRepo, sessRepo, keyRepo, oidcStateRepo, linkedAccountRepo, svcCfg, oidcProviders, natsBus)
 
 	// HTTP router
 	router := transport.NewRouter(svc)

@@ -9,6 +9,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 
+	auditdomain "github.com/evidra/evidra/audit/domain"
+	auditevents "github.com/evidra/evidra/audit/events"
 	"github.com/evidra/evidra/orchestrator/domain"
 	"github.com/evidra/evidra/orchestrator/events"
 	"github.com/evidra/evidra/orchestrator/repository"
@@ -106,6 +108,7 @@ func (s *OrchestratorService) Answer(ctx context.Context, req AnswerRequest) (*A
 		Confidence:   draft.Confidence,
 		EvidenceIDs:  draft.EvidenceIDs,
 	})
+	s.auditPublish(ctx, auditdomain.ActionAIGenerated, req.TenantID, uuid.Nil, draft.ID.String())
 
 	return &AnswerResult{Draft: &draft, Evidence: evidence}, nil
 }
@@ -129,6 +132,7 @@ func (s *OrchestratorService) ApproveDraft(ctx context.Context, id uuid.UUID) er
 		return err
 	}
 	s.publish(ctx, events.DraftStatusChanged{ID: id, Status: string(domain.DraftApproved)})
+	s.auditPublish(ctx, auditdomain.ActionDraftApproved, uuid.Nil, uuid.Nil, id.String())
 	return nil
 }
 
@@ -140,7 +144,12 @@ func (s *OrchestratorService) RejectDraft(ctx context.Context, id uuid.UUID, fee
 		return err
 	}
 	s.publish(ctx, events.DraftStatusChanged{ID: id, Status: string(domain.DraftRejected), Feedback: feedback})
+	s.auditPublish(ctx, auditdomain.ActionDraftRejected, uuid.Nil, uuid.Nil, id.String())
 	return nil
+}
+
+func (s *OrchestratorService) auditPublish(ctx context.Context, action auditdomain.Action, tenantID, actorID uuid.UUID, targetID string) {
+	s.publish(ctx, auditevents.NewAuditRecorded(tenantID, actorID, string(action), targetID))
 }
 
 func (s *OrchestratorService) publish(ctx context.Context, event queue.Event) {

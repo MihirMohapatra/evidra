@@ -10,6 +10,11 @@ import (
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
+	NATS     NATSConfig
+}
+
+type NATSConfig struct {
+	URL string
 }
 
 type ServerConfig struct {
@@ -42,6 +47,8 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("database.max_open_conns", 25)
 	v.SetDefault("database.max_idle_conns", 5)
 	v.SetDefault("database.conn_max_lifetime", "5m")
+
+	v.SetDefault("nats.url", "nats://localhost:4222")
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

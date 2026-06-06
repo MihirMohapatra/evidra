@@ -56,6 +56,7 @@ func (s *IdentitySuite) SetupSuite() {
 			PasswordMinLength: 8,
 		},
 		nil,
+		nil,
 	)
 }
 

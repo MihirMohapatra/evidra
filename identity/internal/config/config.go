@@ -13,6 +13,11 @@ type Config struct {
 	JWT      JWTConfig
 	OIDC     OIDCConfig
 	Log      LogConfig
+	NATS     NATSConfig
+}
+
+type NATSConfig struct {
+	URL string
 }
 
 type ServerConfig struct {
@@ -80,6 +85,8 @@ func Load(path string) (*Config, error) {
 
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
+
+	v.SetDefault("nats.url", "nats://localhost:4222")
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

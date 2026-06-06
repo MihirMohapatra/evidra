@@ -9,6 +9,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 
+	auditdomain "github.com/evidra/evidra/audit/domain"
+	auditevents "github.com/evidra/evidra/audit/events"
 	"github.com/evidra/evidra/evidence/domain"
 	"github.com/evidra/evidra/evidence/events"
 	"github.com/evidra/evidra/evidence/repository"
@@ -57,6 +59,8 @@ func (s *EvidenceService) Create(ctx context.Context, input domain.CreateEvidenc
 		OwnerID:   item.OwnerID,
 		ExpiresAt: item.ExpiresAt.Format(time.RFC3339),
 	})
+
+	s.auditPublish(ctx, auditdomain.ActionEvidenceCreated, item.TenantID, uuid.Nil, item.ID.String())
 
 	slog.Info("evidence created",
 		"id", item.ID,
@@ -162,6 +166,7 @@ func (s *EvidenceService) Update(ctx context.Context, id uuid.UUID, input domain
 		ID:       item.ID,
 		TenantID: item.TenantID,
 	})
+	s.auditPublish(ctx, auditdomain.ActionEvidenceUpdated, item.TenantID, uuid.Nil, item.ID.String())
 
 	return item, nil
 }
@@ -178,6 +183,7 @@ func (s *EvidenceService) Delete(ctx context.Context, id uuid.UUID) error {
 		ID:       item.ID,
 		TenantID: item.TenantID,
 	})
+	s.auditPublish(ctx, auditdomain.ActionEvidenceDeleted, item.TenantID, uuid.Nil, item.ID.String())
 	return nil
 }
 
@@ -197,6 +203,7 @@ func (s *EvidenceService) Submit(ctx context.Context, id uuid.UUID) (*domain.Evi
 		TenantID: item.TenantID,
 		Status:   item.Status,
 	})
+	s.auditPublish(ctx, auditdomain.ActionEvidenceSubmitted, item.TenantID, uuid.Nil, item.ID.String())
 	return item, nil
 }
 
@@ -228,6 +235,7 @@ func (s *EvidenceService) Export(ctx context.Context, id uuid.UUID) (*domain.Evi
 		TenantID: item.TenantID,
 		Title:    item.Title,
 	})
+	s.auditPublish(ctx, auditdomain.ActionDocumentExported, item.TenantID, uuid.Nil, item.ID.String())
 	slog.Info("evidence exported", "id", item.ID, "tenant", item.TenantID)
 	return item, nil
 }
@@ -263,7 +271,20 @@ func (s *EvidenceService) statusChange(ctx context.Context, id, reviewerID uuid.
 		Comment:    comment,
 	})
 
+	var auditAction auditdomain.Action
+	switch item.Status {
+	case domain.StatusApproved:
+		auditAction = auditdomain.ActionAnswerApproved
+	default:
+		auditAction = auditdomain.ActionEvidenceUpdated
+	}
+	s.auditPublish(ctx, auditAction, item.TenantID, reviewerID, item.ID.String())
+
 	return item, nil
+}
+
+func (s *EvidenceService) auditPublish(ctx context.Context, action auditdomain.Action, tenantID, actorID uuid.UUID, targetID string) {
+	s.publish(ctx, auditevents.NewAuditRecorded(tenantID, actorID, string(action), targetID))
 }
 
 func (s *EvidenceService) publish(ctx context.Context, event queue.Event) {
