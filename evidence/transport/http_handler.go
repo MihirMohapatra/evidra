@@ -210,19 +210,7 @@ func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.SubmitRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	reviewerID, err := uuid.Parse(req.ReviewerID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid reviewer_id")
-		return
-	}
-
-	item, err := h.svc.Submit(r.Context(), id, reviewerID)
+	item, err := h.svc.Submit(r.Context(), id)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -279,26 +267,14 @@ func (h *Handler) Reject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dto.ToEvidenceResponse(item))
 }
 
-func (h *Handler) Renew(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid evidence id")
 		return
 	}
 
-	var req dto.RenewRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	expiresAt, err := time.Parse(time.RFC3339, req.ExpiresAt)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid expires_at format")
-		return
-	}
-
-	item, err := h.svc.Renew(r.Context(), id, expiresAt)
+	item, err := h.svc.Export(r.Context(), id)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -352,7 +328,7 @@ func writeDomainError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrInvalidInput):
 		writeError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, domain.ErrInvalidStatus):
+	case errors.Is(err, domain.ErrInvalidTransition):
 		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrInvalidCategory):
 		writeError(w, http.StatusBadRequest, err.Error())

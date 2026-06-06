@@ -28,12 +28,8 @@ type RejectRequest struct {
 	Comment string `json:"comment" validate:"required"`
 }
 
-type SubmitRequest struct {
-	ReviewerID string `json:"reviewer_id" validate:"required,uuid"`
-}
-
-type RenewRequest struct {
-	ExpiresAt string `json:"expires_at" validate:"required"`
+type ExportRequest struct {
+	Comment string `json:"comment"`
 }
 
 type ListEvidenceRequest struct {

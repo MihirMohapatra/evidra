@@ -9,7 +9,6 @@ const (
 	SubjectEvidenceCreated  = "evidence.created"
 	SubjectEvidenceUpdated  = "evidence.updated"
 	SubjectEvidenceDeleted  = "evidence.deleted"
-	SubjectEvidenceExpired  = "evidence.expired"
 	SubjectEvidenceApproved = "evidence.approved"
 	SubjectEvidenceRejected = "evidence.rejected"
 	SubjectEvidenceExported = "evidence.exported"
@@ -41,13 +40,26 @@ type EvidenceDeleted struct {
 
 func (e EvidenceDeleted) Subject() string { return SubjectEvidenceDeleted }
 
-type EvidenceExpired struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-	Title    string    `json:"title"`
+type EvidenceStatusChanged struct {
+	ID         uuid.UUID    `json:"id"`
+	TenantID   uuid.UUID    `json:"tenant_id"`
+	Status     domain.Status `json:"status"`
+	ReviewerID uuid.UUID    `json:"reviewer_id"`
+	Comment    string       `json:"comment"`
 }
 
-func (e EvidenceExpired) Subject() string { return SubjectEvidenceExpired }
+func (e EvidenceStatusChanged) Subject() string {
+	switch e.Status {
+	case domain.StatusApproved:
+		return SubjectEvidenceApproved
+	case domain.StatusDraft:
+		return SubjectEvidenceRejected
+	case domain.StatusExported:
+		return SubjectEvidenceExported
+	default:
+		return SubjectEvidenceUpdated
+	}
+}
 
 type EvidenceExported struct {
 	ID       uuid.UUID `json:"id"`
@@ -56,24 +68,3 @@ type EvidenceExported struct {
 }
 
 func (e EvidenceExported) Subject() string { return SubjectEvidenceExported }
-
-type EvidenceStatusChanged struct {
-	ID         uuid.UUID            `json:"id"`
-	TenantID   uuid.UUID            `json:"tenant_id"`
-	Status     domain.ApprovalStatus `json:"status"`
-	ReviewerID uuid.UUID            `json:"reviewer_id"`
-	Comment    string               `json:"comment"`
-}
-
-func (e EvidenceStatusChanged) Subject() string {
-	switch e.Status {
-	case domain.StatusApproved:
-		return SubjectEvidenceApproved
-	case domain.StatusRejected:
-		return SubjectEvidenceRejected
-	case domain.StatusExported:
-		return SubjectEvidenceExported
-	default:
-		return SubjectEvidenceUpdated
-	}
-}

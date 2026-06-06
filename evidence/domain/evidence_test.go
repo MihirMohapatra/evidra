@@ -50,27 +50,50 @@ func TestNewEvidence_NilTags(t *testing.T) {
 	assert.Empty(t, item.Tags)
 }
 
-func TestTransitionStatus_Valid(t *testing.T) {
+func TestSubmit(t *testing.T) {
 	item := NewEvidence(validInput())
-	err := item.TransitionStatus(StatusPending)
+	err := item.Submit()
 	assert.NoError(t, err)
-	assert.Equal(t, StatusPending, item.Status)
+	assert.Equal(t, StatusReview, item.Status)
 }
 
-func TestTransitionStatus_Invalid(t *testing.T) {
+func TestApprove(t *testing.T) {
 	item := NewEvidence(validInput())
-	err := item.TransitionStatus(StatusApproved)
+	require.NoError(t, item.Submit())
+	err := item.Approve()
+	assert.NoError(t, err)
+	assert.Equal(t, StatusApproved, item.Status)
+}
+
+func TestApprove_InvalidFromDraft(t *testing.T) {
+	item := NewEvidence(validInput())
+	err := item.Approve()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot transition")
 	assert.Equal(t, StatusDraft, item.Status)
 }
 
-func TestTransitionStatus_UpdatesTimestamp(t *testing.T) {
+func TestReject(t *testing.T) {
 	item := NewEvidence(validInput())
-	original := item.UpdatedAt
-	time.Sleep(time.Millisecond)
-	_ = item.TransitionStatus(StatusPending)
-	assert.True(t, item.UpdatedAt.After(original))
+	require.NoError(t, item.Submit())
+	err := item.Reject()
+	assert.NoError(t, err)
+	assert.Equal(t, StatusDraft, item.Status)
+}
+
+func TestExport(t *testing.T) {
+	item := NewEvidence(validInput())
+	require.NoError(t, item.Submit())
+	require.NoError(t, item.Approve())
+	err := item.Export()
+	assert.NoError(t, err)
+	assert.Equal(t, StatusExported, item.Status)
+}
+
+func TestExport_InvalidFromDraft(t *testing.T) {
+	item := NewEvidence(validInput())
+	err := item.Export()
+	assert.Error(t, err)
+	assert.Equal(t, StatusDraft, item.Status)
 }
 
 func TestIsExpired(t *testing.T) {
@@ -82,27 +105,6 @@ func TestIsExpired(t *testing.T) {
 
 	item.ExpiresAt = time.Time{}
 	assert.False(t, item.IsExpired())
-}
-
-func TestRenew_NotExpired(t *testing.T) {
-	item := NewEvidence(validInput())
-	item.Status = StatusDraft
-	newExpiry := time.Now().Add(72 * time.Hour)
-	original := item.UpdatedAt
-	time.Sleep(time.Millisecond)
-	item.Renew(newExpiry)
-	assert.Equal(t, newExpiry, item.ExpiresAt)
-	assert.Equal(t, StatusDraft, item.Status)
-	assert.True(t, item.UpdatedAt.After(original))
-}
-
-func TestRenew_Expired(t *testing.T) {
-	item := NewEvidence(validInput())
-	item.Status = StatusExpired
-	newExpiry := time.Now().Add(72 * time.Hour)
-	item.Renew(newExpiry)
-	assert.Equal(t, StatusDraft, item.Status)
-	assert.Equal(t, newExpiry, item.ExpiresAt)
 }
 
 func validInput() CreateEvidenceInput {

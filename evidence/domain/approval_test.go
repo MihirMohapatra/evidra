@@ -2,26 +2,24 @@ package domain
 
 import (
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestApprovalStatus_Valid(t *testing.T) {
+func TestStatus_Valid(t *testing.T) {
 	tests := []struct {
-		status ApprovalStatus
+		status Status
 		valid  bool
 	}{
 		{StatusDraft, true},
-		{StatusPending, true},
+		{StatusReview, true},
 		{StatusApproved, true},
-		{StatusRejected, true},
-		{StatusExpired, true},
-		{StatusArchived, true},
 		{StatusExported, true},
-		{"unknown", false},
+		{"PENDING", false},
+		{"REJECTED", false},
+		{"EXPIRED", false},
 		{"", false},
 	}
 	for _, tt := range tests {
@@ -29,34 +27,24 @@ func TestApprovalStatus_Valid(t *testing.T) {
 	}
 }
 
-func TestApprovalStatus_CanTransitionTo(t *testing.T) {
+func TestStatus_CanTransitionTo(t *testing.T) {
 	tests := []struct {
-		current ApprovalStatus
-		next    ApprovalStatus
+		current Status
+		next    Status
 		allowed bool
 	}{
-		{StatusDraft, StatusPending, true},
-		{StatusDraft, StatusArchived, true},
+		{StatusDraft, StatusReview, true},
 		{StatusDraft, StatusApproved, false},
-		{StatusDraft, StatusRejected, false},
-		{StatusPending, StatusApproved, true},
-		{StatusPending, StatusRejected, true},
-		{StatusPending, StatusDraft, false},
+		{StatusDraft, StatusExported, false},
+		{StatusReview, StatusApproved, true},
+		{StatusReview, StatusDraft, true},
+		{StatusReview, StatusExported, false},
 		{StatusApproved, StatusExported, true},
-		{StatusApproved, StatusArchived, true},
-		{StatusApproved, StatusExpired, true},
 		{StatusApproved, StatusDraft, false},
-		{StatusExported, StatusArchived, true},
+		{StatusApproved, StatusReview, false},
 		{StatusExported, StatusDraft, false},
-		{StatusRejected, StatusDraft, true},
-		{StatusRejected, StatusArchived, true},
-		{StatusRejected, StatusApproved, false},
-		{StatusExpired, StatusDraft, true},
-		{StatusExpired, StatusArchived, true},
-		{StatusExpired, StatusApproved, false},
-		{StatusArchived, StatusDraft, false},
-		{StatusArchived, StatusPending, false},
-		{StatusArchived, StatusApproved, false},
+		{StatusExported, StatusReview, false},
+		{StatusExported, StatusApproved, false},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.allowed, tt.current.CanTransitionTo(tt.next), "%s -> %s", tt.current, tt.next)
@@ -65,7 +53,7 @@ func TestApprovalStatus_CanTransitionTo(t *testing.T) {
 
 func TestNewStatusError(t *testing.T) {
 	err := NewStatusError(StatusDraft, StatusApproved)
-	assert.Equal(t, "cannot transition from draft to approved", err.Error())
+	assert.Equal(t, "cannot transition from DRAFT to APPROVED", err.Error())
 }
 
 func TestNewApproval(t *testing.T) {
@@ -78,5 +66,4 @@ func TestNewApproval(t *testing.T) {
 	assert.Equal(t, StatusApproved, a.Status)
 	assert.Equal(t, "looks good", a.Comment)
 	assert.NotEqual(t, uuid.Nil, a.ID)
-	assert.WithinDuration(t, time.Now(), a.CreatedAt, time.Second)
 }

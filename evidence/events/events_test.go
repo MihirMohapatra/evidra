@@ -24,21 +24,15 @@ func TestEvidenceDeleted_Subject(t *testing.T) {
 	assert.Equal(t, SubjectEvidenceDeleted, e.Subject())
 }
 
-func TestEvidenceExpired_Subject(t *testing.T) {
-	e := EvidenceExpired{ID: uuid.New(), TenantID: uuid.New(), Title: "expired"}
-	assert.Equal(t, SubjectEvidenceExpired, e.Subject())
-}
-
 func TestEvidenceStatusChanged_Subject(t *testing.T) {
 	tests := []struct {
-		status  domain.ApprovalStatus
+		status  domain.Status
 		subject string
 	}{
 		{domain.StatusApproved, SubjectEvidenceApproved},
-		{domain.StatusRejected, SubjectEvidenceRejected},
+		{domain.StatusDraft, SubjectEvidenceRejected},
 		{domain.StatusExported, SubjectEvidenceExported},
-		{domain.StatusDraft, SubjectEvidenceUpdated},
-		{domain.StatusPending, SubjectEvidenceUpdated},
+		{domain.StatusReview, SubjectEvidenceUpdated},
 	}
 	for _, tt := range tests {
 		e := EvidenceStatusChanged{

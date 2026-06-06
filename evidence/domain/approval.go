@@ -5,51 +5,39 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/evidra/evidra/pkg/workflow"
 )
 
-type ApprovalStatus string
+type Status string
 
 const (
-	StatusDraft     ApprovalStatus = "draft"
-	StatusPending   ApprovalStatus = "pending_review"
-	StatusApproved  ApprovalStatus = "approved"
-	StatusRejected  ApprovalStatus = "rejected"
-	StatusExpired   ApprovalStatus = "expired"
-	StatusArchived  ApprovalStatus = "archived"
-	StatusExported  ApprovalStatus = "exported"
+	StatusDraft    Status = "DRAFT"
+	StatusReview   Status = "NEEDS_REVIEW"
+	StatusApproved Status = "APPROVED"
+	StatusExported Status = "EXPORTED"
 )
 
-func (s ApprovalStatus) Valid() bool {
+var ApprovalMachine = workflow.New([]workflow.TransitionDef{
+	{From: string(StatusDraft), To: string(StatusReview), Name: "submit"},
+	{From: string(StatusReview), To: string(StatusApproved), Name: "approve"},
+	{From: string(StatusReview), To: string(StatusDraft), Name: "reject"},
+	{From: string(StatusApproved), To: string(StatusExported), Name: "export"},
+})
+
+func (s Status) Valid() bool {
 	switch s {
-	case StatusDraft, StatusPending, StatusApproved, StatusRejected, StatusExpired, StatusArchived, StatusExported:
+	case StatusDraft, StatusReview, StatusApproved, StatusExported:
 		return true
 	}
 	return false
 }
 
-func (s ApprovalStatus) CanTransitionTo(next ApprovalStatus) bool {
-	transitions := map[ApprovalStatus][]ApprovalStatus{
-		StatusDraft:    {StatusPending, StatusArchived},
-		StatusPending:  {StatusApproved, StatusRejected},
-		StatusApproved: {StatusExpired, StatusArchived, StatusExported},
-		StatusExported: {StatusArchived},
-		StatusRejected: {StatusDraft, StatusArchived},
-		StatusExpired:  {StatusDraft, StatusArchived},
-		StatusArchived: {},
-	}
-	allowed, ok := transitions[s]
-	if !ok {
-		return false
-	}
-	for _, st := range allowed {
-		if st == next {
-			return true
-		}
-	}
-	return false
+func (s Status) CanTransitionTo(next Status) bool {
+	return ApprovalMachine.CanTransition(string(s), string(next))
 }
 
-func NewStatusError(current, target ApprovalStatus) error {
+func NewStatusError(current, target Status) error {
 	return fmt.Errorf("cannot transition from %s to %s", current, target)
 }
 
@@ -57,12 +45,12 @@ type Approval struct {
 	ID         uuid.UUID
 	EvidenceID uuid.UUID
 	ReviewerID uuid.UUID
-	Status     ApprovalStatus
+	Status     Status
 	Comment    string
 	CreatedAt  time.Time
 }
 
-func NewApproval(evidenceID, reviewerID uuid.UUID, status ApprovalStatus, comment string) *Approval {
+func NewApproval(evidenceID, reviewerID uuid.UUID, status Status, comment string) *Approval {
 	return &Approval{
 		ID:         uuid.New(),
 		EvidenceID: evidenceID,
