@@ -140,6 +140,8 @@ func (r *AuditRepo) Count(ctx context.Context, filter repository.AuditFilter) (i
 		argIdx++
 	}
 
+	_ = argIdx
+
 	var count int
 	err := r.pool.QueryRow(ctx, query, args...).Scan(&count)
 	return count, err
