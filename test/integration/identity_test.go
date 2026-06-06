@@ -69,7 +69,7 @@ func (s *IdentitySuite) TearDownTest() {
 }
 
 func (s *IdentitySuite) TestCreateAndGetOrganization() {
-	org, err := s.service.CreateOrganization(s.ctx, "Test Org", "test-org")
+	org, err := s.service.CreateOrganization(s.ctx, "Test Org", "testorg")
 	s.Require().NoError(err)
 	s.Require().NotNil(org)
 	s.Equal("Test Org", org.Name)
@@ -81,7 +81,7 @@ func (s *IdentitySuite) TestCreateAndGetOrganization() {
 	s.Equal(org.Name, got.Name)
 	s.Equal(org.Slug, got.Slug)
 
-	_, err = s.service.CreateOrganization(s.ctx, "Test Org", "test-org")
+	_, err = s.service.CreateOrganization(s.ctx, "Test Org", "testorg")
 	s.Error(err)
 	s.ErrorContains(err, "already exists")
 
@@ -90,7 +90,7 @@ func (s *IdentitySuite) TestCreateAndGetOrganization() {
 }
 
 func (s *IdentitySuite) TestCreateAndGetUser() {
-	org, err := s.service.CreateOrganization(s.ctx, "Users Org", "users-org")
+	org, err := s.service.CreateOrganization(s.ctx, "Users Org", "usersorg")
 	s.Require().NoError(err)
 
 	user, err := s.service.CreateUser(s.ctx, idservice.CreateUserInput{
@@ -123,7 +123,7 @@ func (s *IdentitySuite) TestCreateAndGetUser() {
 }
 
 func (s *IdentitySuite) TestLogin() {
-	org, err := s.service.CreateOrganization(s.ctx, "Login Org", "login-org")
+	org, err := s.service.CreateOrganization(s.ctx, "Login Org", "loginorg")
 	s.Require().NoError(err)
 
 	_, err = s.service.CreateUser(s.ctx, idservice.CreateUserInput{
@@ -149,7 +149,7 @@ func (s *IdentitySuite) TestLogin() {
 }
 
 func (s *IdentitySuite) TestCreateAndValidateAPIKey() {
-	org, err := s.service.CreateOrganization(s.ctx, "APIKey Org", "apikey-org")
+	org, err := s.service.CreateOrganization(s.ctx, "APIKey Org", "apikeyorg")
 	s.Require().NoError(err)
 
 	key, rawKey, err := s.service.CreateAPIKey(s.ctx, org.ID, "test-key")
