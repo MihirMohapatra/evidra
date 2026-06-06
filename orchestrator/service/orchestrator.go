@@ -77,7 +77,7 @@ func (s *OrchestratorService) Answer(ctx context.Context, req AnswerRequest) (*A
 	}
 	slog.Info("embedding generated", "dims", len(embedding), "elapsed", time.Since(start))
 
-	evidence, err := s.embeddings.SearchSimilar(ctx, embedding, s.topK)
+	evidence, err := s.embeddings.SearchSimilar(ctx, req.TenantID, embedding, s.topK)
 	if err != nil {
 		return nil, fmt.Errorf("similarity search: %w", err)
 	}

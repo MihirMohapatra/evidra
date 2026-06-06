@@ -22,16 +22,17 @@ func NewEmbeddingRepo(pool *pgxpool.Pool) *EmbeddingRepo {
 
 var _ repository.EmbeddingRepository = (*EmbeddingRepo)(nil)
 
-func (r *EmbeddingRepo) SearchSimilar(ctx context.Context, embedding []float32, limit int) ([]domain.Evidence, error) {
+func (r *EmbeddingRepo) SearchSimilar(ctx context.Context, tenantID uuid.UUID, embedding []float32, limit int) ([]domain.Evidence, error) {
 	vec := formatVector(embedding)
 	query := fmt.Sprintf(`
 		SELECT id, evidence_id, title, content, category, source_url, 1 - (embedding <=> %s) AS score
 		FROM evidence_embeddings
-		WHERE embedding IS NOT NULL
+		WHERE tenant_id = $1
+		  AND embedding IS NOT NULL
 		ORDER BY embedding <=> %s
-		LIMIT $1`, vec, vec)
+		LIMIT $2`, vec, vec)
 
-	rows, err := r.pool.Query(ctx, query, limit)
+	rows, err := r.pool.Query(ctx, query, tenantID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("vector search: %w", err)
 	}
@@ -56,15 +57,15 @@ func (r *EmbeddingRepo) SearchSimilar(ctx context.Context, embedding []float32, 
 func (r *EmbeddingRepo) Upsert(ctx context.Context, chunk *domain.EvidenceChunk) error {
 	vec := formatVector(chunk.Embedding)
 	query := fmt.Sprintf(`
-		INSERT INTO evidence_embeddings (id, evidence_id, title, content, category, source_url, metadata, embedding, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, %s, $8)
+		INSERT INTO evidence_embeddings (id, tenant_id, evidence_id, content, metadata, embedding, created_at)
+		VALUES ($1, $2, $3, $4, $5, %s, $6)
 		ON CONFLICT (id) DO UPDATE SET
 			content = EXCLUDED.content,
 			embedding = EXCLUDED.embedding,
 			metadata = EXCLUDED.metadata`, vec)
 
 	_, err := r.pool.Exec(ctx, query,
-		chunk.ID, chunk.EvidenceID, "", chunk.Content, "", "", chunk.Metadata, chunk.CreatedAt)
+		chunk.ID, chunk.TenantID, chunk.EvidenceID, chunk.Content, chunk.Metadata, chunk.CreatedAt)
 	return err
 }
 
