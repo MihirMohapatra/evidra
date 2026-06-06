@@ -27,4 +27,3 @@ Thumbs.db
 *.local.yaml
 
 # Dependencies
-go.sum

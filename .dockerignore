@@ -5,8 +5,4 @@
 *.md
 tests/
 scripts/
-deployments/
-configs/
-*.yaml
-*.yml
-!.github/workflows
+.git
