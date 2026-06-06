@@ -457,7 +457,7 @@ func (s *IdentityService) HandleOIDCCallback(ctx context.Context, provider, code
 	if err != nil {
 		return nil, fmt.Errorf("token exchange: %w", err)
 	}
-	defer tokenResp.Body.Close()
+	defer func() { _ = tokenResp.Body.Close() }()
 
 	if tokenResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(tokenResp.Body)
@@ -483,7 +483,7 @@ func (s *IdentityService) HandleOIDCCallback(ctx context.Context, provider, code
 	if err != nil {
 		return nil, fmt.Errorf("userinfo request: %w", err)
 	}
-	defer userInfoResp.Body.Close()
+	defer func() { _ = userInfoResp.Body.Close() }()
 
 	if userInfoResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(userInfoResp.Body)
