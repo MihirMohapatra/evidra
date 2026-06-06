@@ -42,3 +42,17 @@ type APIKeyRepository interface {
 	Update(ctx context.Context, key *domain.APIKey) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
+
+type OIDCStateRepository interface {
+	Create(ctx context.Context, state *domain.OIDCState) error
+	GetByState(ctx context.Context, state string) (*domain.OIDCState, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteExpired(ctx context.Context) error
+}
+
+type LinkedAccountRepository interface {
+	Create(ctx context.Context, account *domain.LinkedAccount) error
+	GetByProviderSubject(ctx context.Context, provider, subject string) (*domain.LinkedAccount, error)
+	ListByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.LinkedAccount, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}

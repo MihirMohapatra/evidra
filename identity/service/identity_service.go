@@ -5,7 +5,13 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -25,13 +31,25 @@ type Config struct {
 	PasswordMinLength int
 }
 
+type ProviderConfig struct {
+	Name         string
+	IssuerURL    string
+	ClientID     string
+	ClientSecret  string
+	RedirectURL  string
+	Scopes       []string
+}
+
 type IdentityService struct {
-	orgs  repository.OrganizationRepository
-	users repository.UserRepository
-	sess  repository.SessionRepository
-	keys  repository.APIKeyRepository
-	v     *validator.Validate
-	cfg   Config
+	orgs    repository.OrganizationRepository
+	users   repository.UserRepository
+	sess    repository.SessionRepository
+	keys    repository.APIKeyRepository
+	oidc    repository.OIDCStateRepository
+	links   repository.LinkedAccountRepository
+	providers []ProviderConfig
+	v       *validator.Validate
+	cfg     Config
 }
 
 func New(
@@ -39,15 +57,21 @@ func New(
 	users repository.UserRepository,
 	sess repository.SessionRepository,
 	keys repository.APIKeyRepository,
+	oidc repository.OIDCStateRepository,
+	links repository.LinkedAccountRepository,
 	cfg Config,
+	providers []ProviderConfig,
 ) *IdentityService {
 	return &IdentityService{
-		orgs:  orgs,
-		users: users,
-		sess:  sess,
-		keys:  keys,
-		v:     validator.New(),
-		cfg:   cfg,
+		orgs:      orgs,
+		users:     users,
+		sess:      sess,
+		keys:      keys,
+		oidc:      oidc,
+		links:     links,
+		providers: providers,
+		v:         validator.New(),
+		cfg:       cfg,
 	}
 }
 
@@ -332,6 +356,221 @@ func (s *IdentityService) RevokeAPIKey(ctx context.Context, id uuid.UUID) error 
 
 func (s *IdentityService) ListAPIKeys(ctx context.Context, orgID uuid.UUID) ([]*domain.APIKey, error) {
 	return s.keys.ListByOrganization(ctx, orgID)
+}
+
+// --- OIDC ---
+
+type OIDCProviderInfo struct {
+	Name        string `json:"name"`
+	RedirectURL string `json:"redirect_url"`
+}
+
+func (s *IdentityService) GetOIDCProviders() []OIDCProviderInfo {
+	infos := make([]OIDCProviderInfo, 0, len(s.providers))
+	for _, p := range s.providers {
+		infos = append(infos, OIDCProviderInfo{
+			Name:        p.Name,
+			RedirectURL: p.RedirectURL,
+		})
+	}
+	return infos
+}
+
+func (s *IdentityService) GetOIDCProvider(name string) (*ProviderConfig, error) {
+	for _, p := range s.providers {
+		if p.Name == name {
+			return &p, nil
+		}
+	}
+	return nil, fmt.Errorf("%w: unknown OIDC provider %q", domain.ErrInvalidInput, name)
+}
+
+func (s *IdentityService) InitiateOIDCLogin(ctx context.Context, provider string) (string, error) {
+	cfg, err := s.GetOIDCProvider(provider)
+	if err != nil {
+		return "", err
+	}
+
+	stateBytes := make([]byte, 32)
+	if _, err := rand.Read(stateBytes); err != nil {
+		return "", fmt.Errorf("generate state: %w", err)
+	}
+	state := hex.EncodeToString(stateBytes)
+
+	nonceBytes := make([]byte, 16)
+	if _, err := rand.Read(nonceBytes); err != nil {
+		return "", fmt.Errorf("generate nonce: %w", err)
+	}
+	nonce := hex.EncodeToString(nonceBytes)
+
+	record := domain.NewOIDCState(provider, state, nonce, 10*time.Minute)
+	if err := s.oidc.Create(ctx, record); err != nil {
+		return "", fmt.Errorf("save oidc state: %w", err)
+	}
+
+	authURL := fmt.Sprintf(
+		"%s/authorize?response_type=code&client_id=%s&redirect_uri=%s&scope=%s&state=%s&nonce=%s",
+		cfg.IssuerURL,
+		cfg.ClientID,
+		cfg.RedirectURL,
+		strings.Join(cfg.Scopes, " "),
+		state,
+		nonce,
+	)
+
+	return authURL, nil
+}
+
+func (s *IdentityService) HandleOIDCCallback(ctx context.Context, provider, code, state string) (*domain.Session, error) {
+	record, err := s.oidc.GetByState(ctx, state)
+	if err != nil {
+		return nil, fmt.Errorf("invalid state: %w", domain.ErrUnauthorized)
+	}
+
+	if record.ExpiresAt.Before(time.Now()) {
+		return nil, fmt.Errorf("expired state: %w", domain.ErrUnauthorized)
+	}
+
+	if err := s.oidc.Delete(ctx, record.ID); err != nil {
+		slog.Warn("failed to delete oidc state", "id", record.ID, "error", err)
+	}
+
+	cfg, err := s.GetOIDCProvider(provider)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenURL := fmt.Sprintf("%s/token", cfg.IssuerURL)
+	userInfoURL := fmt.Sprintf("%s/userinfo", cfg.IssuerURL)
+
+	data := url.Values{
+		"grant_type":   {"authorization_code"},
+		"code":         {code},
+		"redirect_uri": {cfg.RedirectURL},
+		"client_id":    {cfg.ClientID},
+	}
+	if cfg.ClientSecret != "" {
+		data.Set("client_secret", cfg.ClientSecret)
+	}
+
+	tokenResp, err := http.PostForm(tokenURL, data)
+	if err != nil {
+		return nil, fmt.Errorf("token exchange: %w", err)
+	}
+	defer tokenResp.Body.Close()
+
+	if tokenResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(tokenResp.Body)
+		return nil, fmt.Errorf("token exchange failed: %s", string(body))
+	}
+
+	var tokenResult struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		IDToken     string `json:"id_token,omitempty"`
+	}
+	if err := json.NewDecoder(tokenResp.Body).Decode(&tokenResult); err != nil {
+		return nil, fmt.Errorf("decode token response: %w", err)
+	}
+
+	userInfoReq, err := http.NewRequestWithContext(ctx, http.MethodGet, userInfoURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create userinfo request: %w", err)
+	}
+	userInfoReq.Header.Set("Authorization", "Bearer "+tokenResult.AccessToken)
+
+	userInfoResp, err := http.DefaultClient.Do(userInfoReq)
+	if err != nil {
+		return nil, fmt.Errorf("userinfo request: %w", err)
+	}
+	defer userInfoResp.Body.Close()
+
+	if userInfoResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(userInfoResp.Body)
+		return nil, fmt.Errorf("userinfo failed: %s", string(body))
+	}
+
+	var userInfo struct {
+		Sub   string `json:"sub"`
+		Email string `json:"email"`
+		Name  string `json:"name"`
+	}
+	if err := json.NewDecoder(userInfoResp.Body).Decode(&userInfo); err != nil {
+		return nil, fmt.Errorf("decode userinfo: %w", err)
+	}
+
+	existing, err := s.links.GetByProviderSubject(ctx, provider, userInfo.Sub)
+	if err != nil && err != domain.ErrNotFound {
+		return nil, err
+	}
+
+	var user *domain.User
+
+	if existing != nil {
+		user, err = s.users.GetByID(ctx, existing.UserID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if userInfo.Email == "" {
+			return nil, fmt.Errorf("%w: OIDC provider did not return email", domain.ErrInvalidInput)
+		}
+
+		tmpUser, err := s.users.GetByEmail(ctx, userInfo.Email)
+		if err != nil && err != domain.ErrNotFound {
+			return nil, err
+		}
+
+		if tmpUser != nil {
+			user = tmpUser
+		} else {
+			orgs, err := s.orgs.List(ctx)
+			if err != nil || len(orgs) == 0 {
+				return nil, fmt.Errorf("no organizations available to auto-provision user")
+			}
+
+			randomPW := make([]byte, 32)
+			if _, err := rand.Read(randomPW); err != nil {
+				return nil, err
+			}
+			hash, err := bcrypt.GenerateFromPassword(randomPW, bcrypt.DefaultCost)
+			if err != nil {
+				return nil, err
+			}
+
+			user = domain.NewUser(orgs[0].ID, userInfo.Email, string(hash), domain.RoleReviewer)
+			if err := s.users.Create(ctx, user); err != nil {
+				return nil, err
+			}
+		}
+
+		account := domain.NewLinkedAccount(user.ID, provider, userInfo.Sub, userInfo.Email, userInfo.Name)
+		if err := s.links.Create(ctx, account); err != nil {
+			return nil, err
+		}
+	}
+
+	if !user.IsActive {
+		return nil, domain.ErrUserInactive
+	}
+
+	token, refreshToken, err := s.generateTokenPair(user)
+	if err != nil {
+		return nil, err
+	}
+
+	session := domain.NewSession(user.ID, token, refreshToken, s.cfg.SessionTTL)
+	if err := s.sess.Create(ctx, session); err != nil {
+		return nil, err
+	}
+
+	slog.Info("oidc login",
+		"provider", provider,
+		"user_id", user.ID,
+		"email", user.Email,
+	)
+
+	return session, nil
 }
 
 // --- internal helpers ---

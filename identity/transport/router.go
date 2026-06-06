@@ -21,6 +21,9 @@ func NewRouter(svc *service.IdentityService) *chi.Mux {
 		// Public routes
 		r.Post("/auth/login", h.Login)
 		r.Post("/auth/refresh", h.RefreshToken)
+		r.Get("/auth/oidc/providers", h.ListOIDCProviders)
+		r.Get("/auth/oidc/{provider}/login", h.OIDCLogin)
+		r.Get("/auth/oidc/{provider}/callback", h.OIDCCallback)
 
 		// Protected routes
 		r.Group(func(r chi.Router) {

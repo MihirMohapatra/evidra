@@ -11,6 +11,7 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	JWT      JWTConfig
+	OIDC     OIDCConfig
 	Log      LogConfig
 }
 
@@ -36,6 +37,19 @@ type JWTConfig struct {
 	APIKeyLength   int
 }
 
+type OIDCProviderConfig struct {
+	Name         string
+	IssuerURL    string `mapstructure:"issuer_url"`
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	RedirectURL  string `mapstructure:"redirect_url"`
+	Scopes       []string
+}
+
+type OIDCConfig struct {
+	Providers []OIDCProviderConfig
+}
+
 type LogConfig struct {
 	Level  string
 	Format string
@@ -49,7 +63,6 @@ func Load(path string) (*Config, error) {
 	v.AutomaticEnv()
 	v.SetEnvPrefix("EVIDRA")
 
-	// Defaults
 	v.SetDefault("server.host", "0.0.0.0")
 	v.SetDefault("server.port", 8081)
 	v.SetDefault("server.read_timeout", "10s")

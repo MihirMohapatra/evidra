@@ -43,6 +43,25 @@ func main() {
 	userRepo := postgres.NewUserRepo(pool)
 	sessRepo := postgres.NewSessionRepo(pool)
 	keyRepo := postgres.NewAPIKeyRepo(pool)
+	oidcStateRepo := postgres.NewOIDCStateRepo(pool)
+	linkedAccountRepo := postgres.NewLinkedAccountRepo(pool)
+
+	// OIDC providers
+	oidcProviders := make([]service.ProviderConfig, 0, len(cfg.OIDC.Providers))
+	for _, p := range cfg.OIDC.Providers {
+		scopes := p.Scopes
+		if len(scopes) == 0 {
+			scopes = []string{"openid", "email", "profile"}
+		}
+		oidcProviders = append(oidcProviders, service.ProviderConfig{
+			Name:         p.Name,
+			IssuerURL:    p.IssuerURL,
+			ClientID:     p.ClientID,
+			ClientSecret: p.ClientSecret,
+			RedirectURL:  p.RedirectURL,
+			Scopes:       scopes,
+		})
+	}
 
 	// Service
 	svcCfg := service.Config{
@@ -52,7 +71,7 @@ func main() {
 		APIKeyLength:      cfg.JWT.APIKeyLength,
 		PasswordMinLength: 8,
 	}
-	svc := service.New(orgRepo, userRepo, sessRepo, keyRepo, svcCfg)
+	svc := service.New(orgRepo, userRepo, sessRepo, keyRepo, oidcStateRepo, linkedAccountRepo, svcCfg, oidcProviders)
 
 	// Router
 	router := transport.NewRouter(svc)

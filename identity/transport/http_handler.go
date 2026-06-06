@@ -278,6 +278,54 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dto.ToSessionResponse(session, user))
 }
 
+// --- OIDC ---
+
+func (h *Handler) ListOIDCProviders(w http.ResponseWriter, r *http.Request) {
+	providers := h.svc.GetOIDCProviders()
+	writeJSON(w, http.StatusOK, providers)
+}
+
+func (h *Handler) OIDCLogin(w http.ResponseWriter, r *http.Request) {
+	provider := chi.URLParam(r, "provider")
+	if provider == "" {
+		writeError(w, http.StatusBadRequest, "provider is required")
+		return
+	}
+
+	authURL, err := h.svc.InitiateOIDCLogin(r.Context(), provider)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+func (h *Handler) OIDCCallback(w http.ResponseWriter, r *http.Request) {
+	provider := chi.URLParam(r, "provider")
+	if provider == "" {
+		writeError(w, http.StatusBadRequest, "provider is required")
+		return
+	}
+
+	code := r.URL.Query().Get("code")
+	state := r.URL.Query().Get("state")
+
+	if code == "" || state == "" {
+		writeError(w, http.StatusBadRequest, "missing code or state")
+		return
+	}
+
+	session, err := h.svc.HandleOIDCCallback(r.Context(), provider, code, state)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	user, _ := h.svc.GetUser(r.Context(), session.UserID)
+	writeJSON(w, http.StatusOK, dto.ToSessionResponse(session, user))
+}
+
 // --- API Keys ---
 
 func (h *Handler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
