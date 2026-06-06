@@ -73,7 +73,7 @@ func (s *IdentitySuite) TestCreateAndGetOrganization() {
 	s.Require().NoError(err)
 	s.Require().NotNil(org)
 	s.Equal("Test Org", org.Name)
-	s.Equal("test-org", org.Slug)
+	s.Equal("testorg", org.Slug)
 	s.NotEqual(uuid.Nil, org.ID)
 
 	got, err := s.service.GetOrganization(s.ctx, org.ID)
