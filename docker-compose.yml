@@ -49,6 +49,15 @@ services:
     volumes:
       - pg-orchestrator:/var/lib/postgresql/data
 
+  postgres-audit:
+    <<: *postgres-common
+    environment:
+      POSTGRES_DB: evidra_audit
+    ports:
+      - "5437:5432"
+    volumes:
+      - pg-audit:/var/lib/postgresql/data
+
   nats:
     image: nats:2.10-alpine
     ports:
@@ -182,9 +191,40 @@ services:
       nats:
         condition: service_started
 
+  audit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: audit
+    ports:
+      - "8085:8085"
+    environment:
+      EVIDRA_DATABASE_URL: postgres://evidra:evidra@postgres-audit:5432/evidra_audit?sslmode=disable
+    depends_on:
+      postgres-audit:
+        condition: service_healthy
+
+  orchestrator-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: orchestrator-worker
+    environment:
+      EVIDRA_DATABASE_URL: postgres://evidra:evidra@postgres-orchestrator:5432/evidra_orchestrator?sslmode=disable
+      EVIDRA_NATS_URL: nats://nats:4222
+      EVIDRA_EMBEDDER_PROVIDER: openai
+      EVIDRA_EMBEDDER_OPENAI_KEY: ""
+      EVIDRA_EMBEDDER_MODEL: text-embedding-3-small
+    depends_on:
+      postgres-orchestrator:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
 volumes:
   pg-identity:
   pg-questionnaire:
   pg-evidence:
   pg-orchestrator:
+  pg-audit:
   minio:

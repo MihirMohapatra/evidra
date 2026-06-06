@@ -104,3 +104,31 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build & push audit
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: audit
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ lower(github.repository) }}/audit:latest
+            ${{ env.REGISTRY }}/${{ lower(github.repository) }}/audit:${{ env.IMAGE_TAG }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push orchestrator-worker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: orchestrator-worker
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ lower(github.repository) }}/orchestrator-worker:latest
+            ${{ env.REGISTRY }}/${{ lower(github.repository) }}/orchestrator-worker:${{ env.IMAGE_TAG }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

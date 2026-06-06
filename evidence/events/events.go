@@ -18,6 +18,7 @@ type EvidenceCreated struct {
 	ID        uuid.UUID       `json:"id"`
 	TenantID  uuid.UUID       `json:"tenant_id"`
 	Title     string          `json:"title"`
+	Content   string          `json:"content"`
 	Category  domain.Category `json:"category"`
 	OwnerID   uuid.UUID       `json:"owner_id"`
 	ExpiresAt string          `json:"expires_at"`
