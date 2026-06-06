@@ -24,7 +24,7 @@ func (e *XLSXExtractor) Extract(ctx context.Context, reader io.Reader) (string, 
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var text string
 	for _, sheet := range f.GetSheetList() {

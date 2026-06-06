@@ -43,7 +43,7 @@ func main() {
 		slog.Error("failed to connect to nats", "error", err)
 		os.Exit(1)
 	}
-	defer natsBus.Close()
+	defer func() { _ = natsBus.Close() }()
 
 	var embedder service.Embedder
 	switch cfg.Embedder.Provider {

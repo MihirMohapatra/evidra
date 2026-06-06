@@ -36,18 +36,18 @@ Respond in JSON format with the following fields:
 - reasoning: string (detailed step-by-step reasoning)`
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("## Question\n%s\n\n", question.Text))
+	fmt.Fprintf(&sb, "## Question\n%s\n\n", question.Text)
 	if question.Context != "" {
-		sb.WriteString(fmt.Sprintf("## Context\n%s\n\n", question.Context))
+		fmt.Fprintf(&sb, "## Context\n%s\n\n", question.Context)
 	}
 
 	if len(evidence) > 0 {
 		sb.WriteString("## Relevant Evidence\n\n")
 		for i, ev := range evidence {
-			sb.WriteString(fmt.Sprintf("### Evidence %d: %s\n", i+1, ev.Title))
-			sb.WriteString(fmt.Sprintf("- Category: %s\n", ev.Category))
-			sb.WriteString(fmt.Sprintf("- Relevance Score: %.4f\n", ev.Score))
-			sb.WriteString(fmt.Sprintf("- Content: %s\n\n", ev.Content))
+			fmt.Fprintf(&sb, "### Evidence %d: %s\n", i+1, ev.Title)
+			fmt.Fprintf(&sb, "- Category: %s\n", ev.Category)
+			fmt.Fprintf(&sb, "- Relevance Score: %.4f\n", ev.Score)
+			fmt.Fprintf(&sb, "- Content: %s\n\n", ev.Content)
 		}
 	} else {
 		sb.WriteString("## Relevant Evidence\nNo relevant evidence found. Answer based on general knowledge and indicate low confidence.\n")

@@ -124,7 +124,7 @@ func (s *QuestionnaireService) ProcessDocument(ctx context.Context, event events
 		s.failQuestionnaire(ctx, q, fmt.Errorf("download: %w", err))
 		return err
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	extractor, err := parser.ExtractorFor(event.FileType)
 	if err != nil {
