@@ -49,6 +49,14 @@ type EvidenceExpired struct {
 
 func (e EvidenceExpired) Subject() string { return SubjectEvidenceExpired }
 
+type EvidenceExported struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	Title    string    `json:"title"`
+}
+
+func (e EvidenceExported) Subject() string { return SubjectEvidenceExported }
+
 type EvidenceStatusChanged struct {
 	ID         uuid.UUID            `json:"id"`
 	TenantID   uuid.UUID            `json:"tenant_id"`
