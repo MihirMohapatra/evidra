@@ -40,6 +40,15 @@ services:
     volumes:
       - pg-evidence:/var/lib/postgresql/data
 
+  postgres-orchestrator:
+    <<: *postgres-common
+    environment:
+      POSTGRES_DB: evidra_orchestrator
+    ports:
+      - "5436:5432"
+    volumes:
+      - pg-orchestrator:/var/lib/postgresql/data
+
   nats:
     image: nats:2.10-alpine
     ports:
@@ -149,8 +158,33 @@ services:
       nats:
         condition: service_started
 
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: orchestrator
+    ports:
+      - "8084:8084"
+    environment:
+      EVIDRA_DATABASE_URL: postgres://evidra:evidra@postgres-orchestrator:5432/evidra_orchestrator?sslmode=disable
+      EVIDRA_NATS_URL: nats://nats:4222
+      EVIDRA_LLM_PROVIDER: openai
+      EVIDRA_LLM_OPENAI_KEY: ""
+      EVIDRA_LLM_LOCAL_MODEL: gpt-4o
+      EVIDRA_LLM_TEMPERATURE: "0.3"
+      EVIDRA_LLM_MAX_TOKENS: "2048"
+      EVIDRA_EMBEDDER_PROVIDER: openai
+      EVIDRA_EMBEDDER_OPENAI_KEY: ""
+      EVIDRA_EMBEDDER_MODEL: text-embedding-3-small
+    depends_on:
+      postgres-orchestrator:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
 volumes:
   pg-identity:
   pg-questionnaire:
   pg-evidence:
+  pg-orchestrator:
   minio:

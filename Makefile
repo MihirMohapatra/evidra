@@ -45,6 +45,9 @@ run-questionnaire-worker:
 run-evidence:
 	go run ./evidence/cmd/server ./evidence/evidence-dev.yaml
 
+run-orchestrator:
+	go run ./orchestrator/cmd/server ./orchestrator/orchestrator-dev.yaml
+
 # Database migrations
 migrate-identity:
 	goose -dir identity/repository/migrations postgres "$(IDENTITY_DB_URL)" up
@@ -55,6 +58,9 @@ migrate-questionnaire:
 migrate-evidence:
 	goose -dir evidence/repository/migrations postgres "$(EVIDENCE_DB_URL)" up
 
+migrate-orchestrator:
+	goose -dir orchestrator/repository/migrations postgres "$(ORCHESTRATOR_DB_URL)" up
+
 # Binaries
 build-binaries:
 	mkdir -p dist
@@ -62,8 +68,9 @@ build-binaries:
 	go build -o dist/questionnaire-server ./questionnaire/cmd/server
 	go build -o dist/questionnaire-worker ./questionnaire/cmd/worker
 	go build -o dist/evidence-server ./evidence/cmd/server
+	go build -o dist/orchestrator-server ./orchestrator/cmd/server
 
 .PHONY: dev build test lint vet clean docker-up docker-down docker-build docker-logs
-.PHONY: run-identity run-questionnaire run-questionnaire-worker run-evidence
-.PHONY: migrate-identity migrate-questionnaire migrate-evidence
+.PHONY: run-identity run-questionnaire run-questionnaire-worker run-evidence run-orchestrator
+.PHONY: migrate-identity migrate-questionnaire migrate-evidence migrate-orchestrator
 .PHONY: build-binaries

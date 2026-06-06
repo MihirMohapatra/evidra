@@ -51,3 +51,15 @@ COPY --from=evidence-build /server /server
 COPY evidence/evidence-dev.yaml /configs/evidence.yaml
 EXPOSE 8083
 ENTRYPOINT ["/server", "/configs/evidence.yaml"]
+
+# --- Orchestrator Service ---
+FROM base AS orchestrator-build
+COPY . .
+RUN CGO_ENABLED=0 go build -o /server ./orchestrator/cmd/server
+
+FROM alpine:3.20 AS orchestrator
+RUN apk add --no-cache ca-certificates tzdata
+COPY --from=orchestrator-build /server /server
+COPY orchestrator/orchestrator-dev.yaml /configs/orchestrator.yaml
+EXPOSE 8084
+ENTRYPOINT ["/server", "/configs/orchestrator.yaml"]
