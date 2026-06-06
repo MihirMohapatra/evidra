@@ -12,7 +12,7 @@ type EvidenceItem struct {
 	Title     string
 	Content   string
 	Category  Category
-	Status    ApprovalStatus
+	Status    Status
 	OwnerID   uuid.UUID
 	SourceURL string
 	Tags      []string
@@ -55,23 +55,42 @@ func NewEvidence(input CreateEvidenceInput) *EvidenceItem {
 	}
 }
 
-func (e *EvidenceItem) TransitionStatus(next ApprovalStatus) error {
-	if !e.Status.CanTransitionTo(next) {
-		return NewStatusError(e.Status, next)
+func (e *EvidenceItem) Submit() error {
+	if err := ApprovalMachine.Transition(string(e.Status), string(StatusReview)); err != nil {
+		return err
 	}
-	e.Status = next
+	e.Status = StatusReview
+	e.UpdatedAt = time.Now()
+	return nil
+}
+
+func (e *EvidenceItem) Approve() error {
+	if err := ApprovalMachine.Transition(string(e.Status), string(StatusApproved)); err != nil {
+		return err
+	}
+	e.Status = StatusApproved
+	e.UpdatedAt = time.Now()
+	return nil
+}
+
+func (e *EvidenceItem) Reject() error {
+	if err := ApprovalMachine.Transition(string(e.Status), string(StatusDraft)); err != nil {
+		return err
+	}
+	e.Status = StatusDraft
+	e.UpdatedAt = time.Now()
+	return nil
+}
+
+func (e *EvidenceItem) Export() error {
+	if err := ApprovalMachine.Transition(string(e.Status), string(StatusExported)); err != nil {
+		return err
+	}
+	e.Status = StatusExported
 	e.UpdatedAt = time.Now()
 	return nil
 }
 
 func (e *EvidenceItem) IsExpired() bool {
 	return !e.ExpiresAt.IsZero() && time.Now().After(e.ExpiresAt)
-}
-
-func (e *EvidenceItem) Renew(expiresAt time.Time) {
-	e.ExpiresAt = expiresAt
-	e.UpdatedAt = time.Now()
-	if e.Status == StatusExpired {
-		e.Status = StatusDraft
-	}
 }

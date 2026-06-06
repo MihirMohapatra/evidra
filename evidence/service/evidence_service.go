@@ -100,9 +100,9 @@ func (s *EvidenceService) List(ctx context.Context, filter ListFilter) ([]*domai
 		repoFilter.Category = cat
 	}
 	if filter.Status != "" {
-		repoFilter.Status = domain.ApprovalStatus(filter.Status)
+		repoFilter.Status = domain.Status(filter.Status)
 		if !repoFilter.Status.Valid() {
-			return nil, 0, fmt.Errorf("%w: %s", domain.ErrInvalidStatus, filter.Status)
+			return nil, 0, fmt.Errorf("%w: %s", domain.ErrInvalidTransition, filter.Status)
 		}
 	}
 	if filter.Expiring {
@@ -180,73 +180,55 @@ func (s *EvidenceService) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (s *EvidenceService) Submit(ctx context.Context, id, reviewerID uuid.UUID) (*domain.EvidenceItem, error) {
+func (s *EvidenceService) Submit(ctx context.Context, id uuid.UUID) (*domain.EvidenceItem, error) {
 	item, err := s.evidence.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := item.TransitionStatus(domain.StatusPending); err != nil {
+	if err := item.Submit(); err != nil {
 		return nil, err
 	}
-	if err := s.evidence.Update(ctx, item); err != nil {
-		return nil, err
-	}
-	return item, nil
-}
-
-func (s *EvidenceService) Approve(ctx context.Context, id, reviewerID uuid.UUID, comment string) (*domain.EvidenceItem, error) {
-	return s.statusChange(ctx, id, reviewerID, comment, domain.StatusApproved)
-}
-
-func (s *EvidenceService) Reject(ctx context.Context, id, reviewerID uuid.UUID, comment string) (*domain.EvidenceItem, error) {
-	return s.statusChange(ctx, id, reviewerID, comment, domain.StatusRejected)
-}
-
-func (s *EvidenceService) Renew(ctx context.Context, id uuid.UUID, expiresAt time.Time) (*domain.EvidenceItem, error) {
-	item, err := s.evidence.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	item.Renew(expiresAt)
 	if err := s.evidence.Update(ctx, item); err != nil {
 		return nil, err
 	}
 	s.publish(ctx, events.EvidenceStatusChanged{
-		ID:     item.ID,
+		ID:       item.ID,
 		TenantID: item.TenantID,
-		Status: item.Status,
+		Status:   item.Status,
 	})
 	return item, nil
 }
 
-func (s *EvidenceService) CheckExpired(ctx context.Context) (int, error) {
-	filter := repository.EvidenceFilter{
-		Expired: true,
-	}
-	expiredItems, err := s.evidence.List(ctx, filter)
-	if err != nil {
-		return 0, err
-	}
+func (s *EvidenceService) Approve(ctx context.Context, id, reviewerID uuid.UUID, comment string) (*domain.EvidenceItem, error) {
+	return s.statusChange(ctx, id, reviewerID, comment, func(item *domain.EvidenceItem) error {
+		return item.Approve()
+	})
+}
 
-	count := 0
-	for _, item := range expiredItems {
-		if item.Status == domain.StatusExpired {
-			continue
-		}
-		item.Status = domain.StatusExpired
-		item.UpdatedAt = time.Now()
-		if err := s.evidence.Update(ctx, item); err != nil {
-			slog.Error("failed to expire evidence", "id", item.ID, "error", err)
-			continue
-		}
-		s.publish(ctx, events.EvidenceExpired{
-			ID:       item.ID,
-			TenantID: item.TenantID,
-			Title:    item.Title,
-		})
-		count++
+func (s *EvidenceService) Reject(ctx context.Context, id, reviewerID uuid.UUID, comment string) (*domain.EvidenceItem, error) {
+	return s.statusChange(ctx, id, reviewerID, comment, func(item *domain.EvidenceItem) error {
+		return item.Reject()
+	})
+}
+
+func (s *EvidenceService) Export(ctx context.Context, id uuid.UUID) (*domain.EvidenceItem, error) {
+	item, err := s.evidence.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
 	}
-	return count, nil
+	if err := item.Export(); err != nil {
+		return nil, err
+	}
+	if err := s.evidence.Update(ctx, item); err != nil {
+		return nil, err
+	}
+	s.publish(ctx, events.EvidenceExported{
+		ID:       item.ID,
+		TenantID: item.TenantID,
+		Title:    item.Title,
+	})
+	slog.Info("evidence exported", "id", item.ID, "tenant", item.TenantID)
+	return item, nil
 }
 
 func (s *EvidenceService) GetApprovalHistory(ctx context.Context, evidenceID uuid.UUID) ([]*domain.Approval, error) {
@@ -255,19 +237,19 @@ func (s *EvidenceService) GetApprovalHistory(ctx context.Context, evidenceID uui
 
 // --- internal ---
 
-func (s *EvidenceService) statusChange(ctx context.Context, id, reviewerID uuid.UUID, comment string, status domain.ApprovalStatus) (*domain.EvidenceItem, error) {
+func (s *EvidenceService) statusChange(ctx context.Context, id, reviewerID uuid.UUID, comment string, transition func(*domain.EvidenceItem) error) (*domain.EvidenceItem, error) {
 	item, err := s.evidence.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := item.TransitionStatus(status); err != nil {
+	if err := transition(item); err != nil {
 		return nil, err
 	}
 	if err := s.evidence.Update(ctx, item); err != nil {
 		return nil, err
 	}
 
-	approval := domain.NewApproval(id, reviewerID, status, comment)
+	approval := domain.NewApproval(id, reviewerID, item.Status, comment)
 	if err := s.approvals.Create(ctx, approval); err != nil {
 		slog.Error("failed to record approval", "evidence_id", id, "error", err)
 	}
@@ -275,7 +257,7 @@ func (s *EvidenceService) statusChange(ctx context.Context, id, reviewerID uuid.
 	s.publish(ctx, events.EvidenceStatusChanged{
 		ID:         item.ID,
 		TenantID:   item.TenantID,
-		Status:     status,
+		Status:     item.Status,
 		ReviewerID: reviewerID,
 		Comment:    comment,
 	})

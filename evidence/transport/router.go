@@ -27,7 +27,7 @@ func NewRouter(svc *service.EvidenceService) *chi.Mux {
 		r.Post("/{id}/submit", h.Submit)
 		r.Post("/{id}/approve", h.Approve)
 		r.Post("/{id}/reject", h.Reject)
-		r.Post("/{id}/renew", h.Renew)
+		r.Post("/{id}/export", h.Export)
 		r.Get("/{id}/approvals", h.GetApprovalHistory)
 	})
 

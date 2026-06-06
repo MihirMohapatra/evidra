@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -59,21 +58,7 @@ func main() {
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
-	// Expiry check loop
-	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
-			count, err := svc.CheckExpired(context.Background())
-			if err != nil {
-				slog.Error("expiry check failed", "error", err)
-				continue
-			}
-			if count > 0 {
-				slog.Info("expired evidence items", "count", count)
-			}
-		}
-	}()
+
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

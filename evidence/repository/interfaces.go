@@ -12,7 +12,7 @@ import (
 type EvidenceFilter struct {
 	TenantID  uuid.UUID
 	Category  domain.Category
-	Status    domain.ApprovalStatus
+	Status    domain.Status
 	OwnerID   uuid.UUID
 	Expiring  bool // items expiring within the window
 	ExpireWin time.Duration
