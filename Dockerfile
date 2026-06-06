@@ -75,3 +75,14 @@ COPY --from=audit-build /server /server
 COPY audit/audit-dev.yaml /configs/audit.yaml
 EXPOSE 8085
 ENTRYPOINT ["/server", "/configs/audit.yaml"]
+
+# --- Orchestrator Worker ---
+FROM base AS orchestrator-worker-build
+COPY . .
+RUN CGO_ENABLED=0 go build -o /worker ./orchestrator/cmd/worker
+
+FROM alpine:3.20 AS orchestrator-worker
+RUN apk add --no-cache ca-certificates tzdata
+COPY --from=orchestrator-worker-build /worker /worker
+COPY orchestrator/orchestrator-dev.yaml /configs/orchestrator.yaml
+ENTRYPOINT ["/worker", "/configs/orchestrator.yaml"]

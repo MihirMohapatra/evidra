@@ -204,6 +204,23 @@ services:
       postgres-audit:
         condition: service_healthy
 
+  orchestrator-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: orchestrator-worker
+    environment:
+      EVIDRA_DATABASE_URL: postgres://evidra:evidra@postgres-orchestrator:5432/evidra_orchestrator?sslmode=disable
+      EVIDRA_NATS_URL: nats://nats:4222
+      EVIDRA_EMBEDDER_PROVIDER: openai
+      EVIDRA_EMBEDDER_OPENAI_KEY: ""
+      EVIDRA_EMBEDDER_MODEL: text-embedding-3-small
+    depends_on:
+      postgres-orchestrator:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
 volumes:
   pg-identity:
   pg-questionnaire:

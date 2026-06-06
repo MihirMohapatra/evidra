@@ -53,6 +53,7 @@ jobs:
           go build -o dist/questionnaire-worker ./questionnaire/cmd/worker
           go build -o dist/evidence-server ./evidence/cmd/server
           go build -o dist/orchestrator-server ./orchestrator/cmd/server
+          go build -o dist/orchestrator-worker ./orchestrator/cmd/worker
           go build -o dist/audit-server ./audit/cmd/server
 
       - name: Upload binaries
@@ -133,5 +134,15 @@ jobs:
           file: Dockerfile
           target: audit
           tags: evidra/audit:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build orchestrator-worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: orchestrator-worker
+          tags: evidra/orchestrator-worker:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
