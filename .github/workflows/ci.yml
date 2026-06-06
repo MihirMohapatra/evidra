@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [master, 'feat/**', 'fix/**']
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build all packages
+        run: go build ./...
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          go build -o dist/identity-server ./identity/cmd/server
+          go build -o dist/questionnaire-server ./questionnaire/cmd/server
+          go build -o dist/questionnaire-worker ./questionnaire/cmd/worker
+          go build -o dist/evidence-server ./evidence/cmd/server
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: dist/
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -count=1 ./...
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build identity image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: identity
+          tags: evidra/identity:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build questionnaire image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: questionnaire
+          tags: evidra/questionnaire:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build evidence image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: evidence
+          tags: evidra/evidence:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
