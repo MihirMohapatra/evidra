@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator-worker
+  namespace: evidra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator-worker
+  template:
+    metadata:
+      labels:
+        app: orchestrator-worker
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: orchestrator-worker
+        image: ghcr.io/OWNER/evidra/orchestrator-worker:latest
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: evidra-config
+        env:
+        - name: EVIDRA_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: evidra-secret
+              key: database-url
+        - name: EVIDRA_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: evidra-secret
+              key: jwt-secret
+        - name: EVIDRA_LLM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: evidra-secret
+              key: llm-api-key
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

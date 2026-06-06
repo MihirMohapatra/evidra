@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit
+  namespace: evidra
+spec:
+  selector:
+    app: audit
+  ports:
+  - name: http
+    port: 8085
+    targetPort: 8085

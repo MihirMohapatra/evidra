@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/evidra/evidra/identity/domain"
 	"github.com/evidra/evidra/identity/service"
+	"github.com/evidra/evidra/pkg/telemetry"
 )
 
 func NewRouter(svc *service.IdentityService) *chi.Mux {
@@ -14,44 +15,38 @@ func NewRouter(svc *service.IdentityService) *chi.Mux {
 	r.Use(middleware.RealIP)
 	r.Use(Logging)
 	r.Use(middleware.Recoverer)
+	r.Use(telemetry.Middleware)
+
+	reg := telemetry.InitMetrics()
+	r.Get("/metrics", telemetry.MetricsHandler(reg).ServeHTTP)
 
 	h := NewHandler(svc)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Public routes
 		r.Post("/auth/login", h.Login)
 		r.Post("/auth/refresh", h.RefreshToken)
 		r.Get("/auth/oidc/providers", h.ListOIDCProviders)
 		r.Get("/auth/oidc/{provider}/login", h.OIDCLogin)
 		r.Get("/auth/oidc/{provider}/callback", h.OIDCCallback)
 
-		// Protected routes
 		r.Group(func(r chi.Router) {
 			r.Use(Authentication(svc))
-
 			r.Post("/auth/logout", h.Logout)
-
-			// Organizations
 			r.Get("/organizations", h.ListOrganizations)
 			r.Post("/organizations", h.CreateOrganization)
 			r.Get("/organizations/{id}", h.GetOrganization)
 			r.Put("/organizations/{id}", h.UpdateOrganization)
 			r.Delete("/organizations/{id}", h.DeleteOrganization)
-
-			// Users
 			r.Get("/users", h.ListUsers)
 			r.Post("/users", h.CreateUser)
 			r.Get("/users/{id}", h.GetUser)
 			r.Put("/users/{id}", h.UpdateUser)
 			r.Delete("/users/{id}", h.DeleteUser)
-
-			// API Keys
 			r.Get("/api-keys", h.ListAPIKeys)
 			r.Post("/api-keys", h.CreateAPIKey)
 			r.Delete("/api-keys/{id}", h.RevokeAPIKey)
 		})
 
-		// Admin-only routes
 		r.Group(func(r chi.Router) {
 			r.Use(Authentication(svc))
 			r.Use(RequirePermission(domain.PermissionDeleteOrganization))
