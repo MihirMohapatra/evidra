@@ -13,6 +13,7 @@ type Evidence struct {
 
 type EvidenceChunk struct {
 	ID         uuid.UUID
+	TenantID   uuid.UUID
 	EvidenceID uuid.UUID
 	Content    string
 	Embedding  []float32

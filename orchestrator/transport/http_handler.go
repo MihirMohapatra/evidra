@@ -29,17 +29,20 @@ func (h *Handler) Answer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.TenantID == "" {
+		writeError(w, http.StatusBadRequest, "tenant_id is required")
+		return
+	}
+	tenantID, err := uuid.Parse(req.TenantID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid tenant_id")
+		return
+	}
+
 	svcReq := service.AnswerRequest{
 		Question: req.Question,
 		Context:  req.Context,
-	}
-	if req.TenantID != "" {
-		uid, err := uuid.Parse(req.TenantID)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid tenant_id")
-			return
-		}
-		svcReq.TenantID = uid
+		TenantID: tenantID,
 	}
 
 	result, err := h.svc.Answer(r.Context(), svcReq)

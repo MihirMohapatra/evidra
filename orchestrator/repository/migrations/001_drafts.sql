@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE evidence_embeddings (
     id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
     evidence_id UUID NOT NULL,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
@@ -13,6 +14,7 @@ CREATE TABLE evidence_embeddings (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_embeddings_tenant ON evidence_embeddings(tenant_id);
 CREATE INDEX idx_embeddings_vector ON evidence_embeddings
     USING ivfflat (embedding vector_cosine_ops)
     WITH (lists = 100);

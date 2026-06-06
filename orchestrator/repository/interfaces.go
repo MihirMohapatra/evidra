@@ -9,7 +9,7 @@ import (
 )
 
 type EmbeddingRepository interface {
-	SearchSimilar(ctx context.Context, embedding []float32, limit int) ([]domain.Evidence, error)
+	SearchSimilar(ctx context.Context, tenantID uuid.UUID, embedding []float32, limit int) ([]domain.Evidence, error)
 	Upsert(ctx context.Context, chunk *domain.EvidenceChunk) error
 }
 
