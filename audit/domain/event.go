@@ -29,9 +29,13 @@ const (
 	ActionUserCreated        Action = "USER_CREATED"
 	ActionUserUpdated        Action = "USER_UPDATED"
 	ActionUserDeleted        Action = "USER_DELETED"
-	ActionDraftCreated       Action = "DRAFT_CREATED"
-	ActionDraftApproved      Action = "DRAFT_APPROVED"
-	ActionDraftRejected      Action = "DRAFT_REJECTED"
+	ActionDraftCreated               Action = "DRAFT_CREATED"
+	ActionDraftApproved              Action = "DRAFT_APPROVED"
+	ActionDraftRejected              Action = "DRAFT_REJECTED"
+
+	ActionComplianceFrameworkCreated Action = "COMPLIANCE_FRAMEWORK_CREATED"
+	ActionComplianceControlCreated   Action = "COMPLIANCE_CONTROL_CREATED"
+	ActionComplianceEvidenceMapped   Action = "COMPLIANCE_EVIDENCE_MAPPED"
 )
 
 type AuditEvent struct {
