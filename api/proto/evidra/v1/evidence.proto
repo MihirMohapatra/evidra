@@ -1,0 +1,123 @@
+syntax = "proto3";
+package evidra.v1;
+
+option go_package = "github.com/evidra/evidra/api/gen/evidra/v1;evidrav1";
+
+import "google/protobuf/timestamp.proto";
+import "evidra/v1/common.proto";
+
+message EvidenceItem {
+  string id = 1;
+  string tenant_id = 2;
+  string title = 3;
+  string content = 4;
+  string category = 5;
+  string status = 6;
+  string owner_id = 7;
+  string source_url = 8;
+  repeated string tags = 9;
+  int32 version = 10;
+  google.protobuf.Timestamp expires_at = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message CreateEvidenceRequest {
+  string tenant_id = 1;
+  string title = 2;
+  string content = 3;
+  string category = 4;
+  string owner_id = 5;
+  string source_url = 6;
+  repeated string tags = 7;
+  google.protobuf.Timestamp expires_at = 8;
+}
+
+message GetEvidenceRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message ListEvidenceRequest {
+  string tenant_id = 1;
+  string category = 2;
+  string status = 3;
+  string owner_id = 4;
+  int32 page = 5;
+  int32 page_size = 6;
+}
+
+message ListEvidenceResponse {
+  repeated EvidenceItem items = 1;
+  int32 total = 2;
+}
+
+message UpdateEvidenceRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string title = 3;
+  string content = 4;
+  string source_url = 5;
+  repeated string tags = 6;
+}
+
+message DeleteEvidenceRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message SubmitEvidenceRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message ApproveEvidenceRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string reviewer_id = 3;
+  string comment = 4;
+}
+
+message RejectEvidenceRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string reviewer_id = 3;
+  string comment = 4;
+}
+
+message ExportEvidenceRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message Approval {
+  string id = 1;
+  string evidence_id = 2;
+  string reviewer_id = 3;
+  string status = 4;
+  string comment = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message GetApprovalHistoryRequest {
+  string evidence_id = 1;
+}
+
+message GetApprovalHistoryResponse {
+  repeated Approval approvals = 1;
+}
+
+service EvidenceService {
+  rpc Create(CreateEvidenceRequest) returns (EvidenceItem);
+  rpc Get(GetEvidenceRequest) returns (EvidenceItem);
+  rpc List(ListEvidenceRequest) returns (ListEvidenceResponse);
+  rpc Update(UpdateEvidenceRequest) returns (EvidenceItem);
+  rpc Delete(DeleteEvidenceRequest) returns (Empty);
+
+  rpc Submit(SubmitEvidenceRequest) returns (EvidenceItem);
+  rpc Approve(ApproveEvidenceRequest) returns (EvidenceItem);
+  rpc Reject(RejectEvidenceRequest) returns (EvidenceItem);
+  rpc Export(ExportEvidenceRequest) returns (EvidenceItem);
+
+  rpc GetApprovalHistory(GetApprovalHistoryRequest) returns (GetApprovalHistoryResponse);
+}

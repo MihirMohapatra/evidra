@@ -52,22 +52,25 @@ func New(
 }
 
 func (s *QuestionnaireService) Upload(ctx context.Context, tenantID uuid.UUID, title string, file multipart.File, header *multipart.FileHeader) (*domain.Questionnaire, error) {
-	ext := strings.ToLower(filepath.Ext(header.Filename))
+	return s.UploadBytes(ctx, tenantID, title, header.Filename, file, header.Size, header.Header.Get("Content-Type"))
+}
+
+func (s *QuestionnaireService) UploadBytes(ctx context.Context, tenantID uuid.UUID, title, filename string, reader io.Reader, size int64, contentType string) (*domain.Questionnaire, error) {
+	ext := strings.ToLower(filepath.Ext(filename))
 	if _, err := parser.ExtractorFor(ext); err != nil {
 		return nil, fmt.Errorf("%w: %s", domain.ErrUnsupportedFile, ext)
 	}
 
-	if header.Size > s.maxFileSize {
+	if size > s.maxFileSize {
 		return nil, fmt.Errorf("%w: max size is %d bytes", domain.ErrFileTooLarge, s.maxFileSize)
 	}
 
-	data, err := io.ReadAll(file)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("read file: %w", err)
 	}
 
 	objectKey := fmt.Sprintf("questionnaires/%s/%s%s", tenantID, uuid.New().String(), ext)
-	contentType := header.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
@@ -77,7 +80,7 @@ func (s *QuestionnaireService) Upload(ctx context.Context, tenantID uuid.UUID, t
 	}
 
 	fileURL := fmt.Sprintf("s3://%s/%s", s.bucket, objectKey)
-	q := domain.NewQuestionnaire(tenantID, title, header.Filename, fileURL, ext, header.Size)
+	q := domain.NewQuestionnaire(tenantID, title, filename, fileURL, ext, size)
 
 	if err := s.questionnaires.Create(ctx, q); err != nil {
 		return nil, err
