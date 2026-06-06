@@ -1,0 +1,12 @@
+.git
+.gitignore
+.github
+.dockerignore
+*.md
+tests/
+scripts/
+deployments/
+configs/
+*.yaml
+*.yml
+!.github/workflows

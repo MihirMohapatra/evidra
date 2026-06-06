@@ -1,0 +1,156 @@
+version: "3.9"
+
+x-postgres-common: &postgres-common
+  image: postgres:16-alpine
+  environment:
+    POSTGRES_USER: evidra
+    POSTGRES_PASSWORD: evidra
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U evidra"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+
+services:
+  # --- Infrastructure ---
+  postgres-identity:
+    <<: *postgres-common
+    environment:
+      POSTGRES_DB: evidra_identity
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg-identity:/var/lib/postgresql/data
+
+  postgres-questionnaire:
+    <<: *postgres-common
+    environment:
+      POSTGRES_DB: evidra_questionnaire
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg-questionnaire:/var/lib/postgresql/data
+
+  postgres-evidence:
+    <<: *postgres-common
+    environment:
+      POSTGRES_DB: evidra_evidence
+    ports:
+      - "5435:5432"
+    volumes:
+      - pg-evidence:/var/lib/postgresql/data
+
+  nats:
+    image: nats:2.10-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: ["-js", "-m", "8222"]
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      retries: 5
+
+  createbuckets:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/questionnaires;
+      mc mb --ignore-existing local/evidence;
+      "
+
+  # --- Evidra Services ---
+  identity:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: identity
+    ports:
+      - "8081:8081"
+    environment:
+      EVIDRA_DATABASE_URL: postgres://evidra:evidra@postgres-identity:5432/evidra_identity?sslmode=disable
+      EVIDRA_NATS_URL: nats://nats:4222
+      EVIDRA_JWT_SECRET: change-me-in-production
+    depends_on:
+      postgres-identity:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  questionnaire:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: questionnaire
+    ports:
+      - "8082:8082"
+    environment:
+      EVIDRA_DATABASE_URL: postgres://evidra:evidra@postgres-questionnaire:5432/evidra_questionnaire?sslmode=disable
+      EVIDRA_NATS_URL: nats://nats:4222
+      EVIDRA_STORAGE_ENDPOINT: minio:9000
+      EVIDRA_STORAGE_ACCESS_KEY: minioadmin
+      EVIDRA_STORAGE_SECRET_KEY: minioadmin
+    depends_on:
+      postgres-questionnaire:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      createbuckets:
+        condition: service_completed_successfully
+
+  questionnaire-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: questionnaire-worker
+    environment:
+      EVIDRA_DATABASE_URL: postgres://evidra:evidra@postgres-questionnaire:5432/evidra_questionnaire?sslmode=disable
+      EVIDRA_NATS_URL: nats://nats:4222
+      EVIDRA_STORAGE_ENDPOINT: minio:9000
+      EVIDRA_STORAGE_ACCESS_KEY: minioadmin
+      EVIDRA_STORAGE_SECRET_KEY: minioadmin
+    depends_on:
+      postgres-questionnaire:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      createbuckets:
+        condition: service_completed_successfully
+
+  evidence:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: evidence
+    ports:
+      - "8083:8083"
+    environment:
+      EVIDRA_DATABASE_URL: postgres://evidra:evidra@postgres-evidence:5432/evidra_evidence?sslmode=disable
+      EVIDRA_NATS_URL: nats://nats:4222
+    depends_on:
+      postgres-evidence:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+volumes:
+  pg-identity:
+  pg-questionnaire:
+  pg-evidence:
+  minio:
