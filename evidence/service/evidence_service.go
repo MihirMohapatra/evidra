@@ -52,6 +52,7 @@ func (s *EvidenceService) Create(ctx context.Context, input domain.CreateEvidenc
 		ID:        item.ID,
 		TenantID:  item.TenantID,
 		Title:     item.Title,
+		Content:   item.Content,
 		Category:  item.Category,
 		OwnerID:   item.OwnerID,
 		ExpiresAt: item.ExpiresAt.Format(time.RFC3339),

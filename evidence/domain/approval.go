@@ -16,11 +16,12 @@ const (
 	StatusRejected  ApprovalStatus = "rejected"
 	StatusExpired   ApprovalStatus = "expired"
 	StatusArchived  ApprovalStatus = "archived"
+	StatusExported  ApprovalStatus = "exported"
 )
 
 func (s ApprovalStatus) Valid() bool {
 	switch s {
-	case StatusDraft, StatusPending, StatusApproved, StatusRejected, StatusExpired, StatusArchived:
+	case StatusDraft, StatusPending, StatusApproved, StatusRejected, StatusExpired, StatusArchived, StatusExported:
 		return true
 	}
 	return false
@@ -30,7 +31,8 @@ func (s ApprovalStatus) CanTransitionTo(next ApprovalStatus) bool {
 	transitions := map[ApprovalStatus][]ApprovalStatus{
 		StatusDraft:    {StatusPending, StatusArchived},
 		StatusPending:  {StatusApproved, StatusRejected},
-		StatusApproved: {StatusExpired, StatusArchived},
+		StatusApproved: {StatusExpired, StatusArchived, StatusExported},
+		StatusExported: {StatusArchived},
 		StatusRejected: {StatusDraft, StatusArchived},
 		StatusExpired:  {StatusDraft, StatusArchived},
 		StatusArchived: {},

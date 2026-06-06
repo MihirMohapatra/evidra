@@ -12,16 +12,17 @@ const (
 	SubjectEvidenceExpired  = "evidence.expired"
 	SubjectEvidenceApproved = "evidence.approved"
 	SubjectEvidenceRejected = "evidence.rejected"
-	SubjectEvidenceRenewed  = "evidence.renewed"
+	SubjectEvidenceExported = "evidence.exported"
 )
 
 type EvidenceCreated struct {
-	ID        uuid.UUID          `json:"id"`
-	TenantID  uuid.UUID          `json:"tenant_id"`
-	Title     string             `json:"title"`
-	Category  domain.Category    `json:"category"`
-	OwnerID   uuid.UUID          `json:"owner_id"`
-	ExpiresAt string             `json:"expires_at"`
+	ID        uuid.UUID       `json:"id"`
+	TenantID  uuid.UUID       `json:"tenant_id"`
+	Title     string          `json:"title"`
+	Content   string          `json:"content"`
+	Category  domain.Category `json:"category"`
+	OwnerID   uuid.UUID       `json:"owner_id"`
+	ExpiresAt string          `json:"expires_at"`
 }
 
 func (e EvidenceCreated) Subject() string { return SubjectEvidenceCreated }
@@ -49,11 +50,11 @@ type EvidenceExpired struct {
 func (e EvidenceExpired) Subject() string { return SubjectEvidenceExpired }
 
 type EvidenceStatusChanged struct {
-	ID        uuid.UUID            `json:"id"`
-	TenantID  uuid.UUID            `json:"tenant_id"`
-	Status    domain.ApprovalStatus `json:"status"`
+	ID         uuid.UUID            `json:"id"`
+	TenantID   uuid.UUID            `json:"tenant_id"`
+	Status     domain.ApprovalStatus `json:"status"`
 	ReviewerID uuid.UUID            `json:"reviewer_id"`
-	Comment   string               `json:"comment"`
+	Comment    string               `json:"comment"`
 }
 
 func (e EvidenceStatusChanged) Subject() string {
@@ -62,6 +63,8 @@ func (e EvidenceStatusChanged) Subject() string {
 		return SubjectEvidenceApproved
 	case domain.StatusRejected:
 		return SubjectEvidenceRejected
+	case domain.StatusExported:
+		return SubjectEvidenceExported
 	default:
 		return SubjectEvidenceUpdated
 	}
