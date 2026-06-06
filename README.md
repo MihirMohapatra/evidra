@@ -235,6 +235,14 @@ Handles document upload, parsing, and question extraction.
 - [ ] Kubernetes deployment manifests
 - [ ] CI/CD pipeline
 
+## Documentation
+
+- [Architecture](docs/architecture.md) — Service map, communication patterns, DDD structure
+- [Database Design](docs/database-design.md) — ER diagrams, indexes, migrations, pgvector setup
+- [Scaling](docs/scaling.md) — Horizontal scalability, throughput estimates, caching strategy
+- [Security](docs/security.md) — JWT auth, API keys, OIDC/OAuth2, RBAC, audit trail
+- [Deployment](docs/deployment.md) — Local dev, Docker, CI/CD, Kubernetes, Terraform
+
 ## License
 
 MIT
