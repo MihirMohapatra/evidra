@@ -312,18 +312,6 @@ func scanEvidenceMappings(rows pgx.Rows) ([]*domain.EvidenceMapping, error) {
 	return items, nil
 }
 
-func scanQuestionMapping(row pgx.Row) (*domain.QuestionMapping, error) {
-	var m domain.QuestionMapping
-	err := row.Scan(&m.ID, &m.TenantID, &m.QuestionID, &m.ControlID, &m.MappedBy, &m.CreatedAt)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, domain.ErrNotFound
-		}
-		return nil, err
-	}
-	return &m, nil
-}
-
 func scanQuestionMappings(rows pgx.Rows) ([]*domain.QuestionMapping, error) {
 	var items []*domain.QuestionMapping
 	for rows.Next() {

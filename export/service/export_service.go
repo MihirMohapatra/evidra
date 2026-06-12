@@ -159,17 +159,17 @@ func (s *ExportService) generatePDF(ev *evdomain.EvidenceItem) ([]byte, error) {
 
 func (s *ExportService) generateXLSX(ev *evdomain.EvidenceItem) ([]byte, error) {
 	f := NewXLSXGenerator()
-	f.SetCellValue("Sheet1", "A1", "Title")
-	f.SetCellValue("Sheet1", "B1", ev.Title)
-	f.SetCellValue("Sheet1", "A2", "Category")
-	f.SetCellValue("Sheet1", "B2", string(ev.Category))
-	f.SetCellValue("Sheet1", "A3", "Status")
-	f.SetCellValue("Sheet1", "B3", string(ev.Status))
-	f.SetCellValue("Sheet1", "A4", "Content")
-	f.SetCellValue("Sheet1", "B4", ev.Content)
+	_ = f.SetCellValue("Sheet1", "A1", "Title")
+	_ = f.SetCellValue("Sheet1", "B1", ev.Title)
+	_ = f.SetCellValue("Sheet1", "A2", "Category")
+	_ = f.SetCellValue("Sheet1", "B2", string(ev.Category))
+	_ = f.SetCellValue("Sheet1", "A3", "Status")
+	_ = f.SetCellValue("Sheet1", "B3", string(ev.Status))
+	_ = f.SetCellValue("Sheet1", "A4", "Content")
+	_ = f.SetCellValue("Sheet1", "B4", ev.Content)
 	if ev.SourceURL != "" {
-		f.SetCellValue("Sheet1", "A5", "Source URL")
-		f.SetCellValue("Sheet1", "B5", ev.SourceURL)
+		_ = f.SetCellValue("Sheet1", "A5", "Source URL")
+		_ = f.SetCellValue("Sheet1", "B5", ev.SourceURL)
 	}
 	return XLSXBytes(f)
 }
