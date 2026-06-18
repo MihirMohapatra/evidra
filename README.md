@@ -222,7 +222,7 @@ npm run dev
 
 ### Configuration
 
-Each service reads a YAML config file. Environment variables with the `EVIDRA_` prefix override config values.
+Each service reads a YAML config file. Environment variables with the `EVIDRA_` prefix override config values .
 
 ```yaml
 # configs/dev.yaml
