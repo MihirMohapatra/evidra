@@ -18,8 +18,8 @@
            ┌───────────────┼─────────────────────────────────┐
            │               │                                 │
     ┌──────▼──────┐ ┌─────▼──────┐  ┌─────────▼──────────┐ ┌─▼──────────┐
-    │   Identity  │ │Questionnaire│  │  Evidence          │ │  Export    │
-    │   Service   │ │  Service    │  │  Repository        │ │  Service   │
+    │   Identity  │ │Questionnaire│ │  Evidence          │ │  Export    │
+    │   Service   │ │  Service    │ │  Repository        │ │  Service   │
     └──────┬──────┘ └─────┬──────┘  └─────────┬──────────┘ └─────┬──────┘
            │               │                   │                  │
            │         ┌─────▼──────┐            │                  │
@@ -28,8 +28,8 @@
            │         └─────┬──────┘            │                  │
            │               │                   │                  │
     ┌──────▼──────┐ ┌─────▼──────┐  ┌─────────▼──────────┐ ┌─────▼──────┐
-    │    Audit    │ │Orchestrator│  │  Worker             │ │ Compliance │
-    │   Service   │ │  Service   │  │  (NATS sub)         │ │  Mapper    │
+    │    Audit    │ │Orchestrator│  │  Worker            │ │ Compliance │
+    │   Service   │ │  Service   │  │  (NATS sub)        │ │  Mapper    │
     └─────────────┘ └────────────┘  └─────────────────────┘ └────────────┘
            │               │                   │                  │
            └───────────────┼───────────────────┼──────────────────┘
